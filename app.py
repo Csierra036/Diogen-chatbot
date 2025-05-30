@@ -3,59 +3,68 @@ from langchain_community.document_loaders import PyMuPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_community.vectorstores import Chroma
-#from langchain_chroma import Chroma
 from langchain.prompts import PromptTemplate
 from langchain.chains.retrieval_qa.base import RetrievalQA
+from langchain.chains.combine_documents.stuff import StuffDocumentsChain
+from langchain.chains.llm import LLMChain
 
+# LLM
 bot = ollama.Ollama(model="deepseek-r1:1.5b")
 
-bot.invoke("Hola quien eres?")
-loder = PyMuPDFLoader("src/pdf/sistemas-operativos-william-stallings.pdf")
+# Cargar PDF
+loader = PyMuPDFLoader("src/pdf/sistemas-operativos-william-stallings.pdf")
+data_pdf = loader.load()
 
-data_pdf = loder.load()
+# División del texto
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=500)
 docs = text_splitter.split_documents(data_pdf)
-print("\n\n\n")
-# print(FastEmbedEmbeddings.list_supported_models())
-print("\n\n\n")
-embend_model = FastEmbedEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
+# Embeddings y vector store
+embedding_model = FastEmbedEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vs = Chroma.from_documents(
     documents=docs,
-    embedding=embend_model,
+    embedding=embedding_model,
     persist_directory="db"
 )
 
+# Vector store persistente
 vector_store = Chroma(
-    embedding_function=embend_model,  # Cambiado a embedding_function
+    embedding_function=embedding_model,
     persist_directory="db",
     collection_name="sistemas-operativos"
 )
-retrieve = vector_store.as_retriever(search_kwargs={'k': 3})
+
+retriever = vector_store.as_retriever(search_kwargs={'k': 3})
+
+# Prompt personalizado
 PROMPT = """
 Eres un experto en sistemas operativos, por favor responde a las siguientes preguntas basándote en la información proporcionada:
 Contexto: {context}
 Pregunta: {question}
 """
+prompt = PromptTemplate(template=PROMPT, input_variables=["context", "question"])
 
-prompt = PromptTemplate(template=PROMPT, input_variables=['context', "question"])
-qa= RetrievalQA(
-    llm=bot,
-    retriever=retrieve,
-    chain_type="stuff",
-    chain_type_kwargs={"prompt": prompt},
+# Cadena LLM + documentos
+llm_chain = LLMChain(llm=bot, prompt=prompt)
+stuff_chain = StuffDocumentsChain(llm_chain=llm_chain, document_variable_name="context")
+
+# RetrievalQA con cadena personalizada
+qa = RetrievalQA(
+    combine_documents_chain=stuff_chain,
+    retriever=retriever,
     return_source_documents=True
 )
 
+# Consulta
 response = qa.invoke({
-    "question": "¿Hablame sobre la planificacion de algoritmos?",
-    "context": "Los algoritmos de planitifacion son instrucciones en el cual el procesador trata de ejecutar tareas de manera eficiente y justa."
+    "query": "¿Háblame sobre la planificación de algoritmos?"
 })
 
+# Resultado
 print("Respuesta:", response["result"])
 
-# Mostrar fuentes si es necesario
-if response["source_documents"]:
+# Mostrar fuentes si hay
+if response.get("source_documents"):
     print("\nFuentes utilizadas:")
     for i, doc in enumerate(response["source_documents"], 1):
         print(f"\nDocumento {i}:")
