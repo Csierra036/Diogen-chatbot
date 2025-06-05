@@ -92,22 +92,42 @@ document.getElementById("enviar").addEventListener("click", async function() {
             }
         });
 
-        document.getElementById("archivo").addEventListener("change", function() {
-            let archivo = document.getElementById("archivo").files[0];
+// Manejar la subida de archivos PDF
+document.getElementById("archivo").addEventListener("change", async function(event) {
+    const files = event.target.files;
+    if (files.length === 0) return;
 
-            if (archivo) {
-                let label = document.querySelector(".custom-file");
-                let nombreArchivo = archivo.name;
-                let maxCaracteres = 15; // Límite de caracteres antes de añadir "..."
+    const formData = new FormData();
+    // El backend espera un array de archivos bajo el campo 'files'
+    for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+    }
 
-                if (nombreArchivo.length > maxCaracteres) {
-                    nombreArchivo = nombreArchivo.substring(0, maxCaracteres) + "...";
-                }
-
-                label.innerHTML = `<span class="icono-archivo">📑</span><br>${nombreArchivo}`;
-                label.classList.add("archivo-cargado");
-            }
+    try {
+        let response = await fetch("https://chatbot-python-7jfj.onrender.com/upload", {
+            method: "POST",
+            body: formData
         });
+
+        if (response.ok) {
+            let result = await response.json();
+            let mensaje = document.createElement("div");
+            mensaje.classList.add("mensaje-bot");
+            mensaje.textContent = "Archivo subido correctamente.";
+            if(document.body.classList.contains("dark-mode")) {
+                mensaje.classList.add("dark-mensaje-bot");
+            }
+            document.querySelector(".item:first-child").appendChild(mensaje);
+        } else {
+            throw new Error("Error al subir el archivo.");
+        }
+    } catch (error) {
+        let errorMensaje = document.createElement("div");
+        errorMensaje.classList.add("mensaje-bot");
+        errorMensaje.textContent = "Error al subir el archivo.";
+        document.querySelector(".item:first-child").appendChild(errorMensaje);
+    }
+});
     </script>
 </body>
 </html>
