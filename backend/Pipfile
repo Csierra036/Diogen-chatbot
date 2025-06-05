@@ -146,4 +146,4 @@ zstandard = "*"
 python_version = "3.11"
 
 [scripts]
-start = "uvicorn src.main:app --reload --host 0.0.0.0"
+start = "uvicorn src.main:app --reload --host 0.0.0.0 --port 8000"
