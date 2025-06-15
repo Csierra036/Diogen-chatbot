@@ -1,2 +1,3 @@
 ﻿.env
 ngrok.exe
+backend/chroma_db/chroma.sqlite3
