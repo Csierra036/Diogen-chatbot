@@ -4,7 +4,7 @@ from src.user.service.service import UserService  # tu clase UserService
 from src.utils import hash_password, verify_password
 from src.auth.model.model import LoginRequest
 from sqlalchemy.orm import Session
-from src.database import get_db
+from src.auth.deps.deps import create_access_token
 
 def register_user(user: CreateUserRequest, db: Session):
     user_service = UserService(db)
@@ -29,4 +29,17 @@ def login_user(login_request: LoginRequest, db: Session):
     if not verify_password(login_request.password, user_data.password):
         raise HTTPException(status_code=401, detail="Passwords do not match or Invalid credentials")
 
-    return user_data
+    payload = {
+        "sub": str(user_data.id),  # "sub" es un claim estándar que indica el subject (usuario)
+        "user": {
+            "email": user_data.email,
+            "firstname": user_data.firstname,
+            "lastname": user_data.lastname
+        }
+    }
+    token = create_access_token(payload)
+    return {
+        "user": payload["user"],
+        "access_token": token,
+        "token_type": "bearer"
+    }
