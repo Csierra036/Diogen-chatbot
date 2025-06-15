@@ -94,7 +94,6 @@ proto-plus = "*"
 protobuf = "*"
 pyasn1 = "*"
 pyasn1_modules = "*"
-pydantic = "*"
 pydantic_core = "*"
 pydantic-settings = "*"
 pygments = "*"
@@ -139,6 +138,14 @@ wrapt = "*"
 yarl = "*"
 zipp = "*"
 zstandard = "*"
+psycopg2-binary = "*"
+passlib = {extras = ["bcrypt"], version = "*"}
+pyjwt = "*"
+pydantic = {extras = ["email"], version = "==2.11.5"}
+pydantic-core = "==2.33.2"
+typing-extensions = "==4.14.0"
+email-validator = "==2.2.0"
+dnspython = "==2.7.0"
 
 [dev-packages]
 
