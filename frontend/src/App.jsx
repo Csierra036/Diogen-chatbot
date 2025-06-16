@@ -1,6 +1,5 @@
-// frontend/src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import './App.css'; // Importa tus estilos CSS aquí
+import './App.css'; 
 
 function App() {
   // Estado para controlar el modo oscuro
@@ -15,8 +14,7 @@ function App() {
   // Efecto para aplicar el modo oscuro al body y otros elementos
   useEffect(() => {
     document.body.classList.toggle('dark-mode', isDarkMode);
-    // Para otros elementos, es mejor manejar las clases dentro de los propios componentes React
-    // o usar clases dinámicas en el JSX. Aquí lo haremos simple para el ejemplo.
+
   }, [isDarkMode]);
 
   // Efecto para hacer scroll al final de los mensajes cada vez que se actualizan
@@ -76,10 +74,9 @@ function App() {
       });
 
       if (response.ok) {
-        // let result = await response.json(); // Si necesitas el resultado, puedes usarlo aquí
+        // let result = await response.json(); // Descomentar si se necesita procesar la respuesta
         addMessage("Archivo subido correctamente.", 'bot');
-        // Opcional: Si tu diseño original mostraba algún indicador de archivo cargado
-        // event.target.nextElementSibling.classList.add('archivo-cargado');
+   
       } else {
         throw new Error("Error al subir el archivo.");
       }
