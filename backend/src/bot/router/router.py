@@ -22,3 +22,12 @@ async def upload_documents(files: List[UploadFile] = File(...),user: str = Depen
         return {"message": "Documents processed successfully", "count": processed}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/load-existing", response_model=UploadResponse)
+async def load_existing_pdfs(user: str = Depends(get_current_user)):
+    """Endpoint para cargar todos los PDFs existentes en la carpeta"""
+    try:
+        count = await RAGService.process_existing_pdfs()
+        return {"message": f"Processed {count} existing PDFs", "count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

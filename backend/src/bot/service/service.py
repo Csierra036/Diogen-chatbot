@@ -8,10 +8,53 @@ from src.gemini.service import GeminiService
 from src.pdf.service import save_uploaded_file
 # from app.services.gemini_service import GeminiService
 # from app.utils.file_utils import save_uploaded_file
+import glob
+import shutil
 
 class RAGService:
     CHROMA_PERSIST_DIRECTORY = "chroma_db"
     PDF_STORAGE_PATH = "src/pdf/"
+    INITIAL_PDFS_PATH = "src/pdf/initial_pdfs/"
+
+    @classmethod
+    async def process_existing_pdfs(cls) -> int:
+        """Procesa todos los PDFs de la carpeta initial_pdfs (solo copia, no mueve)"""
+        # Crear carpetas si no existen
+        os.makedirs(cls.INITIAL_PDFS_PATH, exist_ok=True)
+        os.makedirs(cls.PDF_STORAGE_PATH, exist_ok=True)
+        
+        pdf_files = glob.glob(os.path.join(cls.INITIAL_PDFS_PATH, "*.pdf"))
+        if not pdf_files:
+            print(f"No se encontraron PDFs en {cls.INITIAL_PDFS_PATH}")
+            return 0
+        
+        processed_count = 0
+        for file_path in pdf_files:
+            try:
+                
+                filename = os.path.basename(file_path)
+                dest_path = os.path.join(cls.PDF_STORAGE_PATH, filename)
+                
+                
+                if not os.path.exists(dest_path):
+                    shutil.copy2(file_path, dest_path)
+                    print(f"Copiado: {filename}")
+                else:
+                    print(f"El archivo {filename} ya existe en el destino. Omitiendo copia.")
+                
+                
+                loader = PyPDFLoader(dest_path) 
+                documents = loader.load()
+                chunks = cls._split_documents(documents)
+                cls._add_to_chroma(chunks)
+                
+                processed_count += 1
+            except Exception as e:
+                print(f"Error procesando {file_path}: {str(e)}")
+                continue  
+        
+        print(f"Procesados {processed_count} archivos PDF (copiados y añadidos a Chroma DB)")
+        return processed_count
 
     @classmethod
     def query_rag(cls, question: str) -> str:
