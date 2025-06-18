@@ -8,8 +8,9 @@ import {
   Sun, 
   Bot, 
   User, 
-  MessageCircle, 
-  Sparkles 
+  FileText,
+  Sparkles,
+  MessageCircle
 } from 'lucide-react';
 
 function ChatbotComponent({ authToken, onLogout }) {
@@ -17,17 +18,48 @@ function ChatbotComponent({ authToken, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [queryText, setQueryText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [welcomePhase, setWelcomePhase] = useState('typing');
+  const [typedText, setTypedText] = useState('');
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
-  // Obtener el nombre del usuario desde localStorage al cargar el componente
-  const userFirstName = localStorage.getItem('userFirstName') || 'Usuario';
+  const welcomeText = "Bienvenido";
 
   useEffect(() => {
     if (!authToken) {
       navigate('/login');
     }
   }, [authToken, navigate]);
+
+  // Welcome animation effect
+  useEffect(() => {
+    if (showWelcome && welcomePhase === 'typing') {
+      let currentIndex = 0;
+      const typingInterval = setInterval(() => {
+        if (currentIndex <= welcomeText.length) {
+          setTypedText(welcomeText.slice(0, currentIndex));
+          currentIndex++;
+        } else {
+          clearInterval(typingInterval);
+          setWelcomePhase('complete');
+          
+          // Wait 2 seconds then start fade out
+          setTimeout(() => {
+            setWelcomePhase('fadeOut');
+            
+            // After fade out animation, hide welcome and show main content
+            setTimeout(() => {
+              setShowWelcome(false);
+              setWelcomePhase('done');
+            }, 1000);
+          }, 2000);
+        }
+      }, 150);
+
+      return () => clearInterval(typingInterval);
+    }
+  }, [showWelcome, welcomePhase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -123,8 +155,129 @@ function ChatbotComponent({ authToken, onLogout }) {
     }
   };
 
+  // Welcome Screen Component
+  if (showWelcome) {
+    return (
+      <div className={`min-h-screen relative overflow-hidden transition-all duration-1000 ease-in-out ${
+        isDarkMode 
+          ? "bg-gradient-to-br from-gray-900 via-slate-900 to-black" 
+          : "bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900"
+      }`}>
+        {/* Enhanced Animated Background for Welcome */}
+        <div className="absolute inset-0">
+          <div className={`absolute top-20 left-10 w-40 h-40 rounded-full blur-2xl animate-pulse transition-all duration-1000 ${
+            isDarkMode ? 'bg-purple-400/30' : 'bg-blue-400/30'
+          }`}></div>
+          <div className={`absolute top-40 right-20 w-32 h-32 rounded-full blur-xl animate-bounce transition-all duration-1000 ${
+            isDarkMode ? 'bg-pink-400/40' : 'bg-indigo-400/40'
+          }`} style={{ animationDuration: '3s' }}></div>
+          <div className={`absolute bottom-32 left-20 w-48 h-48 rounded-full blur-3xl animate-pulse transition-all duration-1000 ${
+            isDarkMode ? 'bg-indigo-400/20' : 'bg-cyan-400/20'
+          }`} style={{ animationDelay: '1s' }}></div>
+          <div className={`absolute bottom-20 right-10 w-36 h-36 rounded-full blur-2xl animate-bounce transition-all duration-1000 ${
+            isDarkMode ? 'bg-cyan-300/30' : 'bg-blue-300/30'
+          }`} style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
+          
+          {/* Enhanced floating particles */}
+          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${
+            isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'
+          }`} style={{ animationDelay: '0.5s' }}></div>
+          <div className={`absolute top-3/4 right-1/3 w-2 h-2 rounded-full animate-ping transition-all duration-1000 ${
+            isDarkMode ? 'bg-pink-300/80' : 'bg-blue-300/80'
+          }`} style={{ animationDelay: '1.5s' }}></div>
+          <div className={`absolute top-1/2 left-1/6 w-2.5 h-2.5 rotate-45 animate-ping transition-all duration-1000 ${
+            isDarkMode ? 'bg-cyan-300/70' : 'bg-indigo-300/70'
+          }`} style={{ animationDelay: '2.5s' }}></div>
+          
+          {/* Additional sparkles */}
+          <div className={`absolute top-1/3 right-1/4 w-1 h-1 rounded-full animate-ping transition-all duration-1000 ${
+            isDarkMode ? 'bg-yellow-300/60' : 'bg-white/60'
+          }`} style={{ animationDelay: '3s' }}></div>
+          <div className={`absolute bottom-1/3 left-1/3 w-1.5 h-1.5 rotate-45 animate-ping transition-all duration-1000 ${
+            isDarkMode ? 'bg-emerald-300/50' : 'bg-cyan-300/50'
+          }`} style={{ animationDelay: '3.5s' }}></div>
+        </div>
+
+        {/* Welcome Content */}
+        <div className="relative z-10 flex items-center justify-center min-h-screen">
+          <div className={`text-center transition-all duration-1000 ${
+            welcomePhase === 'fadeOut' ? 'opacity-0 scale-95 transform translate-y-4' : 'opacity-100 scale-100'
+          }`}>
+            {/* Logo with enhanced animation */}
+            <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-8 shadow-2xl transition-all duration-1000 ${
+              isDarkMode 
+                ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-600' 
+                : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-600'
+            }`} style={{
+              animation: 'logoFloat 3s ease-in-out infinite'
+            }}>
+              <Sparkles className="w-12 h-12 text-white animate-pulse" />
+            </div>
+            
+            {/* Typing Animation */}
+            <div className="relative">
+              <h1 className={`text-6xl md:text-7xl lg:text-8xl font-bold mb-4 transition-all duration-1000 ${
+                isDarkMode 
+                  ? 'bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400' 
+                  : 'bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400'
+              } bg-clip-text text-transparent`}>
+                {typedText}
+                <span className={`inline-block w-1 h-16 md:h-20 lg:h-24 ml-2 animate-pulse ${
+                  welcomePhase === 'typing' ? 'opacity-100' : 'opacity-0'
+                } transition-opacity duration-300 ${
+                  isDarkMode ? 'bg-purple-400' : 'bg-blue-400'
+                }`}></span>
+              </h1>
+              
+              {/* Subtitle that appears after typing is complete */}
+              <p className={`text-xl md:text-2xl font-light transition-all duration-1000 delay-500 ${
+                welcomePhase === 'complete' || welcomePhase === 'fadeOut' 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 translate-y-4'
+              } ${
+                isDarkMode ? 'text-purple-200/80' : 'text-blue-200/80'
+              }`}>
+                a Diogen-AI
+              </p>
+            </div>
+
+            {/* Decorative elements */}
+            <div className={`flex justify-center space-x-4 mt-8 transition-all duration-1000 delay-1000 ${
+              welcomePhase === 'complete' || welcomePhase === 'fadeOut' 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-0 translate-y-4'
+            }`}>
+              <div className={`w-2 h-2 rounded-full animate-bounce ${
+                isDarkMode ? 'bg-purple-400' : 'bg-blue-400'
+              }`}></div>
+              <div className={`w-2 h-2 rounded-full animate-bounce ${
+                isDarkMode ? 'bg-pink-400' : 'bg-indigo-400'
+              }`} style={{ animationDelay: '0.1s' }}></div>
+              <div className={`w-2 h-2 rounded-full animate-bounce ${
+                isDarkMode ? 'bg-indigo-400' : 'bg-cyan-400'
+              }`} style={{ animationDelay: '0.2s' }}></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Custom Styles for Welcome */}
+        <style>{`
+          @keyframes logoFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+          }
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Main Chatbot Interface (appears after welcome animation)
   return (
-    <div className={`min-h-screen relative overflow-hidden transition-all duration-700 ease-in-out ${
+    <div className={`min-h-screen relative overflow-hidden transition-all duration-1000 ease-in-out animate-slideInUp ${
       isDarkMode 
         ? "bg-gradient-to-br from-gray-900 via-slate-900 to-black" 
         : "bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900"
@@ -162,8 +315,8 @@ function ChatbotComponent({ authToken, onLogout }) {
         }`}></div>
       </div>
 
-      {/* Header with smooth transitions */}
-      <header className="relative z-10 bg-white/10 backdrop-blur-lg border-b border-white/20 transition-all duration-500">
+      {/* Header with smooth transitions and entrance animation */}
+      <header className="relative z-10 bg-white/10 backdrop-blur-lg border-b border-white/20 transition-all duration-500 animate-slideInDown">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-3">
@@ -216,13 +369,13 @@ function ChatbotComponent({ authToken, onLogout }) {
         </div>
       </header>
 
-      {/* Main Chat Container */}
-      <div className="relative z-10 flex flex-col h-[calc(100vh-80px)]">
+      {/* Main Chat Container with entrance animation */}
+      <div className="relative z-10 flex flex-col h-[calc(100vh-80px)] animate-fadeInUp">
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 && (
-              <div className="text-center py-12">
+              <div className="text-center py-12 animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
                 <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 transition-all duration-500 ${
                   isDarkMode 
                     ? 'bg-gradient-to-r from-purple-500 to-pink-600' 
@@ -230,7 +383,7 @@ function ChatbotComponent({ authToken, onLogout }) {
                 }`}>
                   <MessageCircle className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2 transition-colors duration-500">¡Hola {userFirstName}! Soy Diogen-AI</h3>
+                <h3 className="text-xl font-semibold text-white mb-2 transition-colors duration-500">¡Hola! Soy Diogen-AI</h3>
                 <p className={`text-lg transition-colors duration-500 ${
                   isDarkMode ? 'text-purple-200/80' : 'text-blue-200/80'
                 }`}>¿En qué puedo ayudarte hoy?</p>
@@ -272,7 +425,7 @@ function ChatbotComponent({ authToken, onLogout }) {
                   }`}>
                     <p className="text-sm leading-relaxed">{msg.text}</p>
                     <span className="text-xs opacity-60 mt-1 block">
-                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {msg.timestamp.toLocaleTimeString()}
                     </span>
                   </div>
                 </div>
@@ -308,12 +461,12 @@ function ChatbotComponent({ authToken, onLogout }) {
           </div>
         </div>
 
-        {/* Input Area with smooth transitions */}
-        <div className={`border-t backdrop-blur-lg p-4 transition-all duration-500 ${
+        {/* Input Area with smooth transitions and entrance animation */}
+        <div className={`border-t backdrop-blur-lg p-4 transition-all duration-500 animate-slideInUp ${
           isDarkMode 
             ? 'border-gray-600/30 bg-gray-800/20' 
             : 'border-white/20 bg-white/5'
-        }`}>
+        }`} style={{ animationDelay: '0.5s' }}>
           <div className="max-w-4xl mx-auto">
             <div className="flex items-end space-x-4">
               {/* File Upload with theme transitions */}
@@ -375,14 +528,61 @@ function ChatbotComponent({ authToken, onLogout }) {
         </div>
       </div>
 
-      {/* Custom Styles */}
+      {/* Enhanced Custom Styles */}
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        
+        @keyframes fadeInUp {
+          from { 
+            opacity: 0; 
+            transform: translateY(30px); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0); 
+          }
+        }
+        
+        @keyframes slideInUp {
+          from { 
+            opacity: 0; 
+            transform: translateY(100%); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0); 
+          }
+        }
+        
+        @keyframes slideInDown {
+          from { 
+            opacity: 0; 
+            transform: translateY(-100%); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0); 
+          }
+        }
+        
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out;
+        }
+        
+        .animate-fadeInUp {
+          animation: fadeInUp 0.6s ease-out forwards;
+          opacity: 0;
+        }
+        
+        .animate-slideInUp {
+          animation: slideInUp 0.8s ease-out forwards;
+        }
+        
+        .animate-slideInDown {
+          animation: slideInDown 0.6s ease-out forwards;
         }
         
         /* Smooth scrollbar styling */
