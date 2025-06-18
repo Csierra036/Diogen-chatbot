@@ -1,4 +1,3 @@
-// frontend/src/components/LoginComponent.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 // Importa los íconos de lucide-react
@@ -32,8 +31,7 @@ function LoginComponent({ onLoginSuccess }) {
       if (response.ok) {
         const data = await response.json();
         const token = data.access_token;
-        const userFirstName = data.user_info ? data.user_info.firstname : email; // Ajusta según tu backend
-        
+         const userFirstName = data.user_info ? data.user_info.firstname : "Usuario";
         onLoginSuccess(token);
         localStorage.setItem('userFirstName', userFirstName); // Guarda el nombre del usuario
         
@@ -172,12 +170,7 @@ function LoginComponent({ onLoginSuccess }) {
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center mt-8">
-            <p className="text-blue-200/60 text-sm">
-              Al iniciar sesión, aceptas nuestros términos y condiciones
-            </p>
-          </div>
+      
         </div>
       </div>
 
