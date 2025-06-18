@@ -265,3 +265,142 @@ input:checked + .slider + .toggle-button{
 .item:first-child::-webkit-scrollbar-thumb:hover{
     background-color: rgb(141, 141, 255); /* Color del pulgar (thumb) */
 }
+
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh; /* Ocupa al menos toda la altura de la ventana */
+  background-color: rgb(227, 242, 255); /* Color de fondo del body */
+  padding: 20px;
+  box-sizing: border-box; /* Asegura que padding no aumente el tamaño */
+}
+
+.auth-container h2 {
+  font-family: "Fuente", sans-serif;
+  color: rgb(45, 0, 118);
+  margin-bottom: 20px;
+}
+
+.auth-container form {
+  background-color: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.auth-container .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-container label {
+  margin-bottom: 5px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  color: #333;
+}
+
+.auth-container input[type="text"],
+.auth-container input[type="password"] {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.auth-container input[type="text"]:focus,
+.auth-container input[type="password"]:focus {
+  outline: none;
+  border-color: rgb(0, 123, 255);
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+.auth-container button {
+  background-color: rgb(0, 123, 255);
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.auth-container button:hover {
+  background-color: rgb(0, 92, 204);
+}
+
+.auth-container .error-message {
+  color: red;
+  font-size: 14px;
+  text-align: center;
+}
+
+.auth-container .success-message {
+  color: green;
+  font-size: 14px;
+  text-align: center;
+}
+
+.auth-container p {
+  margin-top: 20px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  color: #555;
+}
+
+.auth-container p a {
+  color: rgb(0, 123, 255);
+  text-decoration: none;
+}
+
+.auth-container p a:hover {
+  text-decoration: underline;
+}
+
+/* Estilos para el modo oscuro en los formularios */
+.dark-mode .auth-container {
+    background-color: #00021f;
+    color: white; /* Para el texto general dentro del contenedor */
+}
+.dark-mode .auth-container h2 {
+    color: rgb(232, 241, 255);
+}
+.dark-mode .auth-container form {
+    background-color: #000536;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+.dark-mode .auth-container label {
+    color: rgb(200, 200, 200);
+}
+.dark-mode .auth-container input[type="text"],
+.dark-mode .auth-container input[type="password"] {
+    background-color: #1a1a2b;
+    color: white;
+    border-color: #333;
+}
+.dark-mode .auth-container input[type="text"]:focus,
+.dark-mode .auth-container input[type="password"]:focus {
+    border-color: rgb(85, 139, 255);
+    box-shadow: 0 0 5px rgba(85, 139, 255, 0.3);
+}
+.dark-mode .auth-container button {
+    background-color: rgb(85, 139, 255);
+}
+.dark-mode .auth-container button:hover {
+    background-color: rgb(60, 100, 200);
+}
+.dark-mode .auth-container p {
+    color: rgb(180, 180, 180);
+}
+.dark-mode .auth-container p a {
+    color: rgb(85, 139, 255);
+}
