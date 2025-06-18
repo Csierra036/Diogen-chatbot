@@ -1,54 +1,39 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import './App.css'; 
-
-// Componentes que crearemos
-import LoginComponent from './components/LoginComponent';
-import RegisterComponent from './components/RegisterComponent';
-import ChatbotComponent from './components/ChatbotComponent'; 
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './components/LoginComponent'; // Asegúrate de que la ruta sea correcta
+import Register from './components/RegisterComponent'; // Asegúrate de que la ruta sea correcta
+import ChatbotComponent from './components/ChatbotComponent'; // Asegúrate de que la ruta sea correcta
+import { ThemeProvider } from './contexts/ThemeContext'; // Importar ThemeProvider
 
 function App() {
-  // Estado para el token de autenticación
-  const [authToken, setAuthToken] = useState(localStorage.getItem('authToken') || null);
+  const [authToken, setAuthToken] = useState(localStorage.getItem('authToken'));
 
-  // Función para manejar el login exitoso
   const handleLoginSuccess = (token) => {
+    localStorage.setItem('authToken', token);
     setAuthToken(token);
-    localStorage.setItem('authToken', token); // Almacena el token
- 
   };
 
-  // Función para manejar el logout
   const handleLogout = () => {
+    localStorage.removeItem('authToken');
     setAuthToken(null);
-    localStorage.removeItem('authToken'); // Elimina el token
-   
+    // Redirección manejada por el useEffect en ChatbotComponent
   };
 
   return (
-    <Router>
-      <Routes>
-        {/* Ruta para el componente de Login */}
-        <Route path="/login" element={<LoginComponent onLoginSuccess={handleLoginSuccess} />} />
-
-        {/* Ruta para el componente de Registro */}
-        <Route path="/register" element={<RegisterComponent />} />
-
-        {/* Ruta para el Chatbot - Protegida */}
-        <Route
-          path="/"
-          element={
-            // Si hay un token, muestra el Chatbot; de lo contrario, redirige al login
-            authToken ? (
-              <ChatbotComponent authToken={authToken} onLogout={handleLogout} />
-            ) : (
-              <LoginComponent onLoginSuccess={handleLoginSuccess} /> // Redirigir al login si no hay token
-            )
-          }
-        />
-     
-      </Routes>
-    </Router>
+    // Envuelve toda tu aplicación con ThemeProvider
+    <ThemeProvider> 
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+          <Route path="/register" element={<Register />} />
+          <Route 
+            path="/chatbot" 
+            element={authToken ? <ChatbotComponent authToken={authToken} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          />
+          <Route path="/" element={<Navigate to="/chatbot" />} />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 

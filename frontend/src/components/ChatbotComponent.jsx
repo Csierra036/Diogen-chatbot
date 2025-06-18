@@ -12,9 +12,12 @@ import {
   Sparkles,
   MessageCircle
 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext'; // Importar el hook useTheme
 
 function ChatbotComponent({ authToken, onLogout }) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Usar el contexto para isDarkMode y toggleDarkMode
+  const { isDarkMode, toggleDarkMode } = useTheme(); 
+
   const [messages, setMessages] = useState([]);
   const [queryText, setQueryText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -88,7 +91,7 @@ function ChatbotComponent({ authToken, onLogout }) {
             }, 1000);
           }, 2000);
         }
-      }, 150);
+      }, [showFarewell, farewellPhase, farewellTextContent, onLogout]); // Asegúrate de incluir onLogout aquí
 
       return () => clearInterval(typingInterval);
     }
@@ -98,9 +101,10 @@ function ChatbotComponent({ authToken, onLogout }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleToggleDarkMode = () => {
-    setIsDarkMode(prevMode => !prevMode);
-  };
+  // Se elimina handleToggleDarkMode ya que ahora viene del contexto
+  // const handleToggleDarkMode = () => {
+  //   setIsDarkMode(prevMode => !prevMode);
+  // };
 
   const addMessage = (text, sender) => {
     setMessages(prevMessages => [...prevMessages, { 
@@ -133,7 +137,8 @@ function ChatbotComponent({ authToken, onLogout }) {
         const botResponse = typeof data === "string" ? data : JSON.stringify(data);
         addMessage(botResponse, 'bot');
       } else if (response.status === 401) {
-        onLogout(); // Esto podría ser un problema si onLogout no maneja la animación de despedida
+        // En caso de 401, iniciar la animación de despedida y luego desconectar
+        initiateFarewell(); 
       } else {
         addMessage("Error al procesar tu consulta. Inténtalo de nuevo.", 'bot');
       }
@@ -169,7 +174,8 @@ function ChatbotComponent({ authToken, onLogout }) {
       if (response.ok) {
         addMessage("Archivo subido correctamente.", 'bot');
       } else if (response.status === 401) {
-        onLogout(); // Similar al comentario anterior
+        // En caso de 401, iniciar la animación de despedida y luego desconectar
+        initiateFarewell();
       } else {
         addMessage("Error al subir el archivo.", 'bot');
       }
@@ -493,7 +499,7 @@ function ChatbotComponent({ authToken, onLogout }) {
             <div className="flex items-center space-x-4">
               {/* Dark Mode Toggle with enhanced animation */}
               <button
-                onClick={handleToggleDarkMode}
+                onClick={toggleDarkMode} // Ahora usa toggleDarkMode del contexto
                 className={`relative p-3 rounded-xl transition-all duration-500 hover:scale-110 transform ${
                   isDarkMode 
                     ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 hover:text-yellow-200' 

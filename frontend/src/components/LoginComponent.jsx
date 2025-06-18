@@ -1,23 +1,20 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-// Importa los íconos de lucide-react
-import { Mail, Lock, Eye, EyeOff, LogIn, Sparkles } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext'; // Importar el hook useTheme
+import { Sparkles, Moon, Sun } from 'lucide-react'; // Importar íconos si los usas
 
-//import logo from '../assets/logo.png'; 
-
-
-function LoginComponent({ onLoginSuccess }) {
-  const [email, setEmail] = useState('');
+function Login({ onLoginSuccess }) {
+  const [email, setEmail] = useState(''); // Cambiado de username a email
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Estado para el botón de carga
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { isDarkMode, toggleDarkMode } = useTheme(); // Obtener el estado del tema y la función
 
-  const handleSubmit = async (e) => { // Eliminado el tipo React.FormEvent
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true); // Activar el estado de carga
+    setIsLoading(true);
 
     try {
       const response = await fetch("https://chatbot-python-7jfj.onrender.com/auth/login", {
@@ -25,168 +22,191 @@ function LoginComponent({ onLoginSuccess }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password }), // Cambiado de username a email aquí
       });
 
       if (response.ok) {
         const data = await response.json();
-        const token = data.access_token;
-         const userFirstName = data.user_info ? data.user_info.firstname : "Usuario";
-        onLoginSuccess(token);
-        localStorage.setItem('userFirstName', userFirstName); // Guarda el nombre del usuario
-        
-        navigate('/');
+        onLoginSuccess(data.access_token);
+        navigate('/chatbot');
       } else {
         const errorData = await response.json();
-        setError(errorData.detail || errorData.message || 'Error de inicio de sesión. Credenciales inválidas.');
+        setError(errorData.detail || "Credenciales incorrectas.");
       }
     } catch (err) {
-      console.error("Error al intentar iniciar sesión:", err);
-      setError('No se pudo conectar con el servidor. Inténtalo de nuevo.');
+      console.error("Error de red:", err);
+      setError("No se pudo conectar con el servidor. Inténtalo de nuevo más tarde.");
     } finally {
-      setIsLoading(false); // Desactivar el estado de carga siempre
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {/* Animated Background Elements */}
+    <div className={`min-h-screen flex flex-col items-center justify-center transition-all duration-1000 ease-in-out ${
+      isDarkMode 
+        ? "bg-gradient-to-br from-gray-900 via-slate-900 to-black" 
+        : "bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900"
+    }`}>
+      {/* Fondo animado similar al chatbot */}
       <div className="absolute inset-0">
-        {/* Floating Orbs */}
-        <div className="absolute top-20 left-10 w-32 h-32 bg-blue-400/20 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-40 right-20 w-24 h-24 bg-indigo-400/30 rounded-full blur-lg animate-bounce" style={{ animationDuration: '3s' }}></div>
-        <div className="absolute bottom-32 left-20 w-40 h-40 bg-cyan-400/15 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute bottom-20 right-10 w-28 h-28 bg-blue-300/25 rounded-full blur-xl animate-bounce" style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
+        <div className={`absolute top-20 left-10 w-40 h-40 rounded-full blur-2xl animate-pulse transition-all duration-1000 ${
+          isDarkMode ? 'bg-purple-400/30' : 'bg-blue-400/30'
+        }`}></div>
+        <div className={`absolute top-40 right-20 w-32 h-32 rounded-full blur-xl animate-bounce transition-all duration-1000 ${
+          isDarkMode ? 'bg-pink-400/40' : 'bg-indigo-400/40'
+        }`} style={{ animationDuration: '3s' }}></div>
+        <div className={`absolute bottom-32 left-20 w-48 h-48 rounded-full blur-3xl animate-pulse transition-all duration-1000 ${
+          isDarkMode ? 'bg-indigo-400/20' : 'bg-cyan-400/20'
+        }`} style={{ animationDelay: '1s' }}></div>
+        <div className={`absolute bottom-20 right-10 w-36 h-36 rounded-full blur-2xl animate-bounce transition-all duration-1000 ${
+          isDarkMode ? 'bg-cyan-300/30' : 'bg-blue-300/30'
+        }`} style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
         
-        {/* Geometric Shapes */}
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white/40 rotate-45 animate-ping" style={{ animationDelay: '0.5s' }}></div>
-        <div className="absolute top-3/4 right-1/3 w-1 h-1 bg-blue-300/60 rounded-full animate-ping" style={{ animationDelay: '1.5s' }}></div>
-        <div className="absolute top-1/2 left-1/6 w-1.5 h-1.5 bg-indigo-300/50 rotate-45 animate-ping" style={{ animationDelay: '2.5s' }}></div>
-        
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 via-transparent to-indigo-900/30"></div>
+        {/* Partículas flotantes */}
+        <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${
+          isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'
+        }`} style={{ animationDelay: '0.5s' }}></div>
+        <div className={`absolute top-3/4 right-1/3 w-2 h-2 rounded-full animate-ping transition-all duration-1000 ${
+          isDarkMode ? 'bg-pink-300/80' : 'bg-blue-300/80'
+        }`} style={{ animationDelay: '1.5s' }}></div>
+        <div className={`absolute top-1/2 left-1/6 w-2.5 h-2.5 rotate-45 animate-ping transition-all duration-1000 ${
+          isDarkMode ? 'bg-cyan-300/70' : 'bg-indigo-300/70'
+        }`} style={{ animationDelay: '2.5s' }}></div>
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-        <div className="w-full max-w-md">
-          {/* Header */}
-          <div className="text-center mb-8">
-      
-            <h1 className="text-3xl font-bold text-white mb-2">Bienvenido</h1>
-            <p className="text-blue-200/80">Inicia sesión en tu cuenta</p>
-          </div>
-
-          {/* Login Form */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email Field */}
-              <div className="group">
-                <label htmlFor="email" className="block text-sm font-medium text-blue-100 mb-2">
-                  Correo Electrónico
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-blue-300/70 group-focus-within:text-blue-300 transition-colors" />
-                  </div>
-                  <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all duration-300 hover:bg-white/10"
-                    placeholder="tu@email.com"
-                  />
-                </div>
-              </div>
-
-              {/* Password Field */}
-              <div className="group">
-                <label htmlFor="password" className="block text-sm font-medium text-blue-100 mb-2">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-blue-300/70 group-focus-within:text-blue-300 transition-colors" />
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all duration-300 hover:bg-white/10"
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-blue-300/70 hover:text-blue-200 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="bg-red-500/20 border border-red-400/30 rounded-xl p-3 animate-shake">
-                  <p className="text-red-200 text-sm text-center">{error}</p>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:from-blue-500/50 disabled:to-indigo-600/50 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:scale-100 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Iniciando sesión...</span>
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-5 h-5" />
-                    <span>Iniciar Sesión</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Register Link */}
-            <div className="mt-6 text-center">
-              <p className="text-blue-200/80">
-                ¿No tienes cuenta?{' '}
-                <Link
-                  to="/register"
-                  className="text-blue-300 hover:text-white font-medium transition-colors duration-300 hover:underline"
-                >
-                  Regístrate aquí
-                </Link>
-              </p>
+      <div className={`relative z-10 w-full max-w-md mx-auto p-8 rounded-2xl shadow-xl backdrop-blur-lg border transition-all duration-500 animate-fadeInUp ${
+        isDarkMode 
+          ? 'bg-gray-800/30 border-gray-700/50' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={toggleDarkMode}
+            className={`relative p-3 rounded-xl transition-all duration-500 hover:scale-110 transform ${
+              isDarkMode 
+                ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 hover:text-yellow-200' 
+                : 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 hover:text-indigo-200'
+            }`}
+          >
+            <div className="relative">
+              <Sun className={`w-5 h-5 absolute transition-all duration-500 ${
+                isDarkMode 
+                  ? 'opacity-100 rotate-0 scale-100' 
+                  : 'opacity-0 rotate-180 scale-75'
+              }`} />
+              <Moon className={`w-5 h-5 absolute transition-all duration-500 ${
+                isDarkMode 
+                  ? 'opacity-0 -rotate-180 scale-75' 
+                  : 'opacity-100 rotate-0 scale-100'
+              }`} />
             </div>
-          </div>
-
-      
+          </button>
         </div>
+
+        <div className="text-center mb-8">
+          <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 shadow-xl transition-all duration-500 ${
+            isDarkMode 
+              ? 'bg-gradient-to-r from-purple-500 to-pink-600' 
+              : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+          }`}>
+            <Sparkles className="w-10 h-10 text-white animate-pulse" />
+          </div>
+          <h2 className={`text-4xl font-extrabold transition-colors duration-500 ${
+            isDarkMode ? 'text-white' : 'text-gray-100'
+          }`}>Iniciar Sesión</h2>
+        </div>
+        
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div>
+            <label 
+              htmlFor="email" // Cambiado de username a email
+              className={`block text-sm font-medium mb-2 transition-colors duration-500 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-200'
+              }`}
+            >
+              Email
+            </label>
+            <input
+              type="email" // Cambiado a type="email" para validación básica del navegador
+              id="email" // Cambiado de username a email
+              className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all duration-300 ${
+                isDarkMode 
+                  ? 'bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 focus:ring-purple-500 focus:border-purple-500' 
+                  : 'bg-white/10 border-white/30 text-white placeholder-blue-200 focus:ring-blue-500 focus:border-blue-500'
+              }`}
+              value={email} // Cambiado de username a email
+              onChange={(e) => setEmail(e.target.value)} // Cambiado de setUsername a setEmail
+              required
+            />
+          </div>
+          <div>
+            <label 
+              htmlFor="password" 
+              className={`block text-sm font-medium mb-2 transition-colors duration-500 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-200'
+              }`}
+            >
+              Contraseña
+            </label>
+            <input
+              type="password"
+              id="password"
+              className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all duration-300 ${
+                isDarkMode 
+                  ? 'bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 focus:ring-purple-500 focus:border-purple-500' 
+                  : 'bg-white/10 border-white/30 text-white placeholder-blue-200 focus:ring-blue-500 focus:border-blue-500'
+              }`}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          
+          {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed ${
+              isDarkMode 
+                ? 'bg-gradient-to-r from-purple-600 to-pink-700 hover:from-purple-700 hover:to-pink-800' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800'
+            }`}
+          >
+            {isLoading ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              'Iniciar Sesión'
+            )}
+          </button>
+        </form>
+
+        <p className={`mt-8 text-center text-sm transition-colors duration-500 ${
+          isDarkMode ? 'text-gray-400' : 'text-gray-200'
+        }`}>
+          ¿No tienes una cuenta?{' '}
+          <Link to="/register" className={`font-medium transition-colors duration-300 hover:underline ${
+            isDarkMode ? 'text-purple-400 hover:text-purple-300' : 'text-blue-300 hover:text-blue-200'
+          }`}>
+            Regístrate aquí
+          </Link>
+        </p>
       </div>
 
-      {/* Custom CSS for shake animation - Tailwind no tiene esto por defecto */}
       <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
+        .animate-fadeInUp {
+          animation: fadeIn 0.8s ease-out forwards;
         }
       `}</style>
     </div>
   );
 }
 
-export default LoginComponent;
+export default Login;
