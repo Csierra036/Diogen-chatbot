@@ -30,6 +30,8 @@ app = start_app()
 
 @app.on_event("startup")
 async def startup_event():
-    # ✅ Crear todas las tablas si no existen
+    #Create the tables in the tabase if not exist
     Base.metadata.create_all(bind=engine)
-    await RAGService.process_existing_pdfs()
+    #Start upload archives at chromadb
+    rag_service = RAGService()
+    await rag_service.upload_pdf_cores_to_chromadb()
