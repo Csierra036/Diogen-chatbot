@@ -4,6 +4,7 @@ from src.bot.router.router import router as bot_router
 from src.auth.router.router import router as auth_router
 from src.database import Base, engine
 from src.user.model.user import User
+from src.bot.service.service import RAGService
 
 def start_app() -> FastAPI:
 
@@ -28,6 +29,9 @@ def start_app() -> FastAPI:
 app = start_app()
 
 @app.on_event("startup")
-def startup_event():
-    # ✅ Crear todas las tablas si no existen
+async def startup_event():
+    #Create the tables in the tabase if not exist
     Base.metadata.create_all(bind=engine)
+    #Start upload archives at chromadb
+    rag_service = RAGService()
+    await rag_service.upload_pdf_cores_to_chromadb()
