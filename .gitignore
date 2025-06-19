@@ -13,3 +13,4 @@ dist
 dist-ssr
 *.local
 backend/chroma_db/chroma.sqlite3
+backend/chroma_db

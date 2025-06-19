@@ -6,19 +6,6 @@ import os
 load_dotenv()
 
 class GeminiService:
-    def generate_response(context: str, query: str) -> str:
-        """Genera respuesta usando el modelo Gemini"""
-        genai.configure(api_key=settings.GOOGLE_API_KEY)
-        
-        model = genai.GenerativeModel('gemma-3-27b-it')
-        prompt = GeminiService.build_prompt(context, query)
-        
-        try:
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            raise Exception(f"Error generating Gemini response: {str(e)}")
-
     def build_prompt(context: str, query: str) -> str:
         context_example = f"""
             La arquitectura de microservicios es un estilo que estructura una aplicación como una colección de  servicios poco acoplados y autónomos. Su objetivo principal es mejorar la modularidad para agilizar los ciclos de desarrollo. A diferencia de la arquitectura monolítica, donde todo es una unidad, los microservicios permiten que los equipos trabajen en paralelo en diferentes componentes. Cada servicio se comunica con otros a través de APIs bien definidas (HTTP/REST). Esto fomenta la resiliencia; si un servicio falla (ej. el de recomendaciones), no colapsa toda la aplicación (ej. el carrito de compras sigue funcionando). Sin embargo, esta arquitectura introduce complejidad operativa en el despliegue y monitoreo de múltiples servicios, y mantener la consistencia de datos entre ellos es un desafío técnico significativo que requiere estrategias como las sagas o la replicación de datos.
@@ -79,3 +66,16 @@ class GeminiService:
             ---
             *Respuesta (basada únicamente en el contexto, siguiendo estrictamente las instrucciones de formato y detalle, máximo 1400 caracteres, en español, amigable y clara):*
         """
+
+    def generate_response(context: str, query: str) -> str:
+        """Genera respuesta usando el modelo Gemini"""
+        genai.configure(api_key=settings.GOOGLE_API_KEY)
+        
+        model = genai.GenerativeModel('gemma-3-27b-it')
+        prompt = GeminiService.build_prompt(context, query)
+        
+        try:
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            raise Exception(f"Error generating Gemini response: {str(e)}")
