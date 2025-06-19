@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, UserPlus, User, Sparkles, Moon, Sun } from 'lucide-react'; // Importar Moon y Sun
-import { useTheme } from '../contexts/ThemeContext'; // Importar el hook useTheme
+import { Mail, Lock, Eye, EyeOff, UserPlus, User, Sparkles, Moon, Sun, CheckCircle } from 'lucide-react'; // Importar CheckCircle para el icono de éxito
+import { useTheme } from '../contexts/ThemeContext';
 
 function RegisterComponent() {
   const [email, setEmail] = useState('');
@@ -14,8 +14,9 @@ function RegisterComponent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(false); // Nuevo estado para la animación
   const navigate = useNavigate();
-  const { isDarkMode, toggleDarkMode } = useTheme(); // Obtener el estado del tema y la función
+  const { isDarkMode, toggleDarkMode } = useTheme();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,16 +40,20 @@ function RegisterComponent() {
       });
 
       if (response.ok) {
-        setSuccess('¡Registro exitoso! Redirigiendo a la página de inicio de sesión...');
+        setSuccess('¡Registro exitoso! Redirigiendo...'); // Mensaje más corto para la animación
+        setShowWelcomeAnimation(true); // Mostrar la animación
+
+        // Limpiar los campos después del registro exitoso
         setEmail('');
         setFirstname('');
         setLastname('');
         setPassword('');
         setConfirmPassword('');
 
+        // Redirigir al login después de un breve retraso y que la animación se muestre
         setTimeout(() => {
           navigate('/login');
-        }, 2000);
+        }, 2500); // Un poco más de tiempo para que la animación sea visible
       } else {
         const errorData = await response.json();
         setError(errorData.detail || errorData.message || 'Error en el registro. Intenta con otro email o datos válidos.');
@@ -139,7 +144,7 @@ function RegisterComponent() {
               <Sparkles className="w-10 h-10 text-white animate-pulse" />
             </div>
             <h1 className={`text-3xl font-bold mb-2 transition-colors duration-500 ${
-              isDarkMode ? 'text-white' : 'text-white' // Cambiado para mantener el blanco en modo claro si ya era así
+              isDarkMode ? 'text-white' : 'text-white'
             }`}>Crear Cuenta</h1>
             <p className={`transition-colors duration-500 ${
               isDarkMode ? 'text-purple-200/80' : 'text-blue-200/80'
@@ -342,8 +347,8 @@ function RegisterComponent() {
                 </div>
               )}
 
-              {/* Success Message */}
-              {success && (
+              {/* Success Message (antes del botón, si no hay animación) */}
+              {success && !showWelcomeAnimation && (
                 <div className={`rounded-xl p-3 transition-colors duration-500 ${
                   isDarkMode ? 'bg-green-500/20 border border-green-400/30' : 'bg-green-500/20 border border-green-400/30'
                 }`}>
@@ -356,7 +361,7 @@ function RegisterComponent() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || showWelcomeAnimation} 
                 className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:scale-100 disabled:cursor-not-allowed flex items-center justify-center space-x-2 ${
                   isDarkMode 
                     ? 'bg-gradient-to-r from-purple-600 to-pink-700 hover:from-purple-700 hover:to-pink-800 disabled:from-purple-500/50 disabled:to-pink-600/50 text-white' 
@@ -397,6 +402,29 @@ function RegisterComponent() {
         </div>
       </div>
 
+      {/* Welcome/Success Animation Overlay */}
+      {showWelcomeAnimation && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ${
+          isDarkMode ? 'bg-black/80' : 'bg-slate-900/80'
+        } animate-fadeInAndScale`}>
+          <div className={`p-8 rounded-2xl shadow-xl text-center flex flex-col items-center space-y-4 transition-all duration-700 ${
+            isDarkMode 
+              ? 'bg-gray-800/90 text-white border border-purple-500/50' 
+              : 'bg-white/90 text-slate-900 border border-blue-500/50'
+          } animate-popIn`}>
+            <CheckCircle className={`w-20 h-20 animate-bounceIn transition-colors duration-700 ${
+              isDarkMode ? 'text-green-400' : 'text-green-600'
+            }`} />
+            <h2 className={`text-4xl font-extrabold transition-colors duration-700 ${
+              isDarkMode ? 'text-white' : 'text-slate-900'
+            }`}>¡Registro Exitoso!</h2>
+            <p className={`text-xl transition-colors duration-700 ${
+              isDarkMode ? 'text-gray-300' : 'text-slate-700'
+            }`}>Te estamos redirigiendo...</p>
+          </div>
+        </div>
+      )}
+
       {/* Custom CSS for shake animation - Same as Login */}
       <style>{`
         @keyframes shake {
@@ -406,6 +434,33 @@ function RegisterComponent() {
         }
         .animate-shake {
           animation: shake 0.5s ease-in-out;
+        }
+
+        /* New animations for welcome screen */
+        @keyframes fadeInAndScale {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fadeInAndScale {
+          animation: fadeInAndScale 0.7s ease-out forwards;
+        }
+
+        @keyframes popIn {
+          0% { transform: scale(0.8); opacity: 0; }
+          50% { transform: scale(1.05); opacity: 1; }
+          100% { transform: scale(1); }
+        }
+        .animate-popIn {
+          animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+        }
+
+        @keyframes bounceIn {
+          0% { transform: scale(0.1); opacity: 0; }
+          60% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(1); }
+        }
+        .animate-bounceIn {
+          animation: bounceIn 0.8s ease-out;
         }
       `}</style>
     </div>
