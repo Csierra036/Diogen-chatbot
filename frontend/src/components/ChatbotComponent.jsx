@@ -398,7 +398,7 @@ function ChatbotComponent({ authToken, onLogout }) {
               </div>
             )}
             {messages.map((msg, index) => (
-              <div
+             <div
                 key={index}
                 className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
               >
@@ -427,7 +427,10 @@ function ChatbotComponent({ authToken, onLogout }) {
                         ? 'bg-gray-800/40 border-gray-600/30 text-gray-100'
                         : 'bg-white/10 border-white/20 text-white'
                   }`}>
-                    <p className="text-sm leading-relaxed">{msg.text}</p>
+                    {/* MODIFICACIÓN AQUÍ */}
+                    <p className="text-sm leading-relaxed">
+                      {msg.text.replace(/\*\*/g, '')} {/* Reemplaza ** con una cadena vacía */}
+                    </p>
                     <span className="text-xs opacity-60 mt-1 block">
                       {msg.timestamp.toLocaleTimeString()}
                     </span>
