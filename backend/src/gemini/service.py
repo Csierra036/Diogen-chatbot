@@ -6,20 +6,7 @@ import os
 load_dotenv()
 
 class GeminiService:
-    def generate_response(context: str, query: str) -> str:
-        """Genera respuesta usando el modelo Gemini"""
-        genai.configure(api_key=settings.GOOGLE_API_KEY)
-        
-        model = genai.GenerativeModel('gemma-3-27b-it')
-        prompt = GeminiService.build_prompt(context, query)
-        
-        try:
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            raise Exception(f"Error generating Gemini response: {str(e)}")
-
-    def build_prompt(context: str, query: str) -> str:
+    def build_prompt(self, context: str, query: str) -> str:
         """Construye el prompt para Gemini"""
         return f"""
         Eres un asistente académico virtual de la universidad, especializado en ingeniería informática. Tu misión es ayudar a estudiantes, docentes e investigadores.
@@ -57,3 +44,16 @@ class GeminiService:
         ---
         **Respuesta (basada únicamente en el contexto, siguiendo estrictamente las instrucciones de formato y detalle, máximo 700 caracteres, en español, amigable y clara):**
     """
+
+    def generate_response(self, context: str, query: str) -> str:
+        """Genera respuesta usando el modelo Gemini"""
+        genai.configure(api_key=settings.GOOGLE_API_KEY)
+        
+        model = genai.GenerativeModel('gemma-3-27b-it')
+        prompt = self.build_prompt(context, query)
+        
+        try:
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            raise Exception(f"Error generating Gemini response: {str(e)}")
