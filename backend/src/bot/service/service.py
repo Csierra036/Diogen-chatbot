@@ -1,4 +1,3 @@
-from fastapi import HTTPException
 import os
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -7,6 +6,8 @@ from langchain_chroma import Chroma
 from src.gemini.service import GeminiService
 from src.pdf.service import save_uploaded_file
 import glob
+from tempfile import NamedTemporaryFile
+from src.constants import CHROMA_DIRECTORY, PDF_CORE_DIRECTORY
 
 class RAGService:
     CHROMA_PERSIST_DIRECTORY = "chroma_db"
@@ -14,12 +15,12 @@ class RAGService:
     INITIAL_PDFS_PATH = "src/pdf/initial_pdfs/"
 
     async def upload_pdf_cores_to_chromadb(self): 
-        chromadb_exist = glob.glob(os.path.join(self.CHROMA_PERSIST_DIRECTORY, "chroma.sqlite3"))
+        chromadb_exist = glob.glob(os.path.join(CHROMA_DIRECTORY, "chroma.sqlite3"))
         
         if not chromadb_exist:
-            pdf_files = glob.glob(os.path.join(self.INITIAL_PDFS_PATH, "*.pdf"))
+            pdf_files = glob.glob(os.path.join(PDF_CORE_DIRECTORY, "*.pdf"))
             if not pdf_files:
-                print(f"No se encontraron PDFs en {self.INITIAL_PDFS_PATH}")
+                print(f"No se encontraron PDFs en {PDF_CORE_DIRECTORY}")
                 return 0
             
             for pdf_file_path in pdf_files:
@@ -32,11 +33,11 @@ class RAGService:
                 except Exception as e:
                     print(f"Error procesando {pdf_file_path}: {str(e)}")
 
-    def query_rag(cls, question: str) -> str:
+    def query_rag(self, question: str) -> str:
         """Consulta al sistema RAG"""
         db = Chroma(
-            persist_directory=cls.CHROMA_PERSIST_DIRECTORY,
-            embedding_function=cls._get_embeddings()
+            persist_directory=CHROMA_DIRECTORY,
+            embedding_function=self._get_embeddings()
         )
         
         retriever = db.as_retriever(search_kwargs={'k': 3})
@@ -45,7 +46,7 @@ class RAGService:
         
         return GeminiService.generate_response(context, question)
 
-    async def process_uploaded_files(cls, files) -> int:
+    async def upload_files_to_the_database(cls, files) -> int:
         """Procesa archivos subidos"""
         saved_files = []
         for file in files:
