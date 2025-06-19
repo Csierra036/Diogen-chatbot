@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useTheme } from '../contexts/ThemeContext'; // Importar el hook useTheme
-import { Sparkles, Moon, Sun } from 'lucide-react'; // Importar íconos si los usas
+import { useTheme } from '../contexts/ThemeContext';
+import { Sparkles, Moon, Sun, CheckCircle } from 'lucide-react'; // Importar CheckCircle
 
 function Login({ onLoginSuccess }) {
-  const [email, setEmail] = useState(''); // Cambiado de username a email
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(false); // Nuevo estado para la animación de bienvenida
+  const [showLoginTransition, setShowLoginTransition] = useState(false); // Nuevo estado para la transición de desvanecimiento del login
+
   const navigate = useNavigate();
-  const { isDarkMode, toggleDarkMode } = useTheme(); // Obtener el estado del tema y la función
+  const { isDarkMode, toggleDarkMode } = useTheme();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,22 +25,38 @@ function Login({ onLoginSuccess }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }), // Cambiado de username a email aquí
+        body: JSON.stringify({ email, password }),
       });
 
       if (response.ok) {
         const data = await response.json();
         onLoginSuccess(data.access_token);
-        navigate('/chatbot');
+
+        // Paso 1: Iniciar la transición de desvanecimiento del formulario de login
+        setShowLoginTransition(true);
+
+        setTimeout(() => {
+          // Paso 2: Ocultar el formulario de login y mostrar la animación de bienvenida
+          // Opcional: Podrías resetear los campos aquí si no quieres que se vean cuando la animación termine
+          // setEmail('');
+          // setPassword('');
+          setShowWelcomeAnimation(true);
+
+          setTimeout(() => {
+            // Paso 3: Redirigir al chatbot después de la animación de bienvenida
+            navigate('/chatbot');
+          }, 2500); // Tiempo para que la animación de bienvenida se muestre
+        }, 500); // Tiempo para que el formulario de login se desvanezca
+
       } else {
         const errorData = await response.json();
         setError(errorData.detail || "Credenciales incorrectas.");
+        setIsLoading(false); // Detener el loading si hay error
       }
     } catch (err) {
       console.error("Error de red:", err);
       setError("No se pudo conectar con el servidor. Inténtalo de nuevo más tarde.");
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Detener el loading si hay error de red
     }
   };
 
@@ -74,11 +93,12 @@ function Login({ onLoginSuccess }) {
         }`} style={{ animationDelay: '2.5s' }}></div>
       </div>
 
+      {/* Contenido del formulario de Login con transición de desvanecimiento */}
       <div className={`relative z-10 w-full max-w-md mx-auto p-8 rounded-2xl shadow-xl backdrop-blur-lg border transition-all duration-500 animate-fadeInUp ${
         isDarkMode 
           ? 'bg-gray-800/30 border-gray-700/50' 
           : 'bg-white/10 border-white/20'
-      }`}>
+      } ${showLoginTransition ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}> {/* Aquí la clase de transición */}
         <div className="flex justify-end mb-4">
           <button
             onClick={toggleDarkMode}
@@ -119,7 +139,7 @@ function Login({ onLoginSuccess }) {
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
             <label 
-              htmlFor="email" // Cambiado de username a email
+              htmlFor="email" 
               className={`block text-sm font-medium mb-2 transition-colors duration-500 ${
                 isDarkMode ? 'text-gray-300' : 'text-gray-200'
               }`}
@@ -127,15 +147,15 @@ function Login({ onLoginSuccess }) {
               Email
             </label>
             <input
-              type="email" // Cambiado a type="email" para validación básica del navegador
-              id="email" // Cambiado de username a email
+              type="email" 
+              id="email" 
               className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all duration-300 ${
                 isDarkMode 
                   ? 'bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 focus:ring-purple-500 focus:border-purple-500' 
                   : 'bg-white/10 border-white/30 text-white placeholder-blue-200 focus:ring-blue-500 focus:border-blue-500'
               }`}
-              value={email} // Cambiado de username a email
-              onChange={(e) => setEmail(e.target.value)} // Cambiado de setUsername a setEmail
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -166,7 +186,7 @@ function Login({ onLoginSuccess }) {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || showLoginTransition} // Deshabilitar durante la transición
             className={`w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed ${
               isDarkMode 
                 ? 'bg-gradient-to-r from-purple-600 to-pink-700 hover:from-purple-700 hover:to-pink-800' 
@@ -196,15 +216,46 @@ function Login({ onLoginSuccess }) {
         </p>
       </div>
 
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+     {/* Welcome/Success Animation Overlay - Sin recuadro */}
+{showWelcomeAnimation && (
+        <div className={`fixed inset-0 z-50 transition-all duration-700 ${
+            isDarkMode ? 'bg-black/0' : 'bg-slate-900/0' // Puedes ajustar esta opacidad si quieres un ligero oscurecimiento
+          } animate-fadeOutOpacity`}>
+          {/* Este div está intencionalmente vacío para solo manejar la transición */}
+        </div>
+      )}
+
+  <style>{`
+
+      /* New animation for a subtle fade-out overlay */
+        @keyframes fadeOutOpacity {
+          from { opacity: 1; }
+          to { opacity: 0; }
         }
-        .animate-fadeInUp {
-          animation: fadeIn 0.8s ease-out forwards;
+        .animate-fadeOutOpacity {
+          animation: fadeOutOpacity 0.1s ease-out forwards; /* Ajusta la duración si es necesario */
         }
-      `}</style>
+
+ 
+
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    .animate-popIn {
+      animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0.1); opacity: 0; }
+      60% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    .animate-bounceIn {
+      animation: bounceIn 0.8s ease-out;
+    }
+  `}</style>
     </div>
   );
 }
