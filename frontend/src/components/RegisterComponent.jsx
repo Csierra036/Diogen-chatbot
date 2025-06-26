@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, UserPlus, User, Sparkles, Moon, Sun, CheckCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import YourLogo from '../assets/logo.png';
+
 
 function RegisterComponent() {
   const [email, setEmail] = useState('');
@@ -161,7 +163,7 @@ function RegisterComponent() {
                 ? 'bg-gradient-to-r from-purple-500 to-pink-600'
                 : 'bg-gradient-to-r from-blue-500 to-indigo-600'
             }`}>
-              <Sparkles className="w-10 h-10 text-white animate-pulse" />
+            <img src={YourLogo} alt="Diogen-AI Logo" className="w-full h-full object-contain p-2 animate-pulse" style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'}} />
             </div>
             <h1 className={`text-3xl font-bold mb-2 transition-colors duration-500 ${
               isDarkMode ? 'text-white' : 'text-white'
