@@ -9,7 +9,8 @@ import {
   Bot,
   User,
   Sparkles,
-  MessageCircle
+  MessageCircle,
+  Type // Icono para el efecto de escritura
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext'; // Importar el hook useTheme
 
@@ -19,7 +20,7 @@ function ChatbotComponent({ authToken, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [queryText, setQueryText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState([]); // Cambiado a un array para múltiples archivos
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   const [showWelcome, setShowWelcome] = useState(true);
   const [welcomePhase, setWelcomePhase] = useState('typing');
@@ -28,12 +29,24 @@ function ChatbotComponent({ authToken, onLogout }) {
 
   const [showFarewell, setShowFarewell] = useState(false);
   const [farewellPhase, setFarewellPhase] = useState('typing');
-  const [typedFarewellText, setTypedFarewellText] = useState('');
+  const [typedFarewellText, setTypedFarewellText] = '';
   const farewellTextContent = "Hasta pronto";
+
+  // NUEVO ESTADO: Para controlar el efecto de escritura del bot
+  const [isTypingEffectEnabled, setIsTypingEffectEnabled] = useState(() => {
+    // Inicializar desde localStorage, por defecto activado si no hay preferencia guardada
+    const storedPreference = localStorage.getItem('typingEffectEnabled');
+    return storedPreference === null ? true : JSON.parse(storedPreference);
+  });
 
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+
+  // NUEVO useEffect: Guarda la preferencia del efecto de escritura en localStorage
+  useEffect(() => {
+    localStorage.setItem('typingEffectEnabled', JSON.stringify(isTypingEffectEnabled));
+  }, [isTypingEffectEnabled]);
 
   useEffect(() => {
     if (!authToken && !showFarewell) {
@@ -87,29 +100,66 @@ function ChatbotComponent({ authToken, onLogout }) {
     }
   }, [showFarewell, farewellPhase, farewellTextContent, onLogout]);
 
+  // MODIFICADO: Este useEffect ahora depende de `isTypingEffectEnabled`
+  useEffect(() => {
+    if (!isTypingEffectEnabled) {
+      // Si el efecto de escritura está deshabilitado, asegura que todos los mensajes estén completos
+      setMessages(prevMessages => prevMessages.map(msg => ({ ...msg, isTyping: false, typedText: msg.text })));
+      return; // Sale del useEffect si el efecto está deshabilitado
+    }
+
+    const lastBotMessageIndex = messages.findLastIndex(msg => msg.sender === 'bot' && msg.isTyping);
+
+    if (lastBotMessageIndex !== -1) {
+      const messageToType = messages[lastBotMessageIndex];
+      let currentIndex = messageToType.typedText.length;
+      const fullText = messageToType.text;
+
+      const typingInterval = setInterval(() => {
+        if (currentIndex < fullText.length) {
+          setMessages(prevMessages => prevMessages.map((msg, index) =>
+            index === lastBotMessageIndex
+              ? { ...msg, typedText: fullText.slice(0, currentIndex + 1) }
+              : msg
+          ));
+          currentIndex++;
+        } else {
+          clearInterval(typingInterval);
+          setMessages(prevMessages => prevMessages.map((msg, index) =>
+            index === lastBotMessageIndex
+              ? { ...msg, isTyping: false }
+              : msg
+          ));
+        }
+      }, 30);
+      return () => clearInterval(typingInterval);
+    }
+  }, [messages, isTypingEffectEnabled]); // Añadido isTypingEffectEnabled como dependencia
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addMessage = (text, sender) => {
+  const addMessage = (text, sender, isTyping = false) => {
     setMessages(prevMessages => [...prevMessages, {
       text,
       sender,
-      timestamp: new Date()
+      timestamp: new Date(),
+      isTyping: isTyping && isTypingEffectEnabled, // Solo activa isTyping si el efecto está habilitado
+      typedText: (isTyping && isTypingEffectEnabled) ? '' : text
     }]);
   };
 
   const handleSendAction = async () => {
     if (queryText.trim() !== '') {
       await handleSendMessage();
-    } else if (selectedFiles.length > 0) { // Revisar si hay archivos seleccionados
+    } else if (selectedFiles.length > 0) {
       await handleSendFile();
     }
-    // Después de enviar, limpiar cualquier archivo seleccionado y el campo de texto
     setSelectedFiles([]);
     setQueryText('');
     if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Limpiar el input de archivo HTML
+      fileInputRef.current.value = "";
     }
   };
 
@@ -134,42 +184,39 @@ function ChatbotComponent({ authToken, onLogout }) {
       if (response.ok) {
         const data = await response.json();
         const botResponse = typeof data === "string" ? data : JSON.stringify(data);
-        addMessage(botResponse, 'bot');
+        addMessage(botResponse, 'bot', true);
       } else if (response.status === 401) {
         initiateFarewell();
       } else {
-        addMessage("Error al procesar tu consulta. Inténtalo de nuevo.", 'bot');
+        addMessage("Error al procesar tu consulta. Inténtalo de nuevo.", 'bot', true);
       }
     } catch (error) {
       console.error("Error al conectar con el servidor:", error);
-      addMessage("Error al conectar con el servidor.", 'bot');
+      addMessage("Error al conectar con el servidor.", 'bot', true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // MODIFICADO: Guarda múltiples archivos en el estado
   const handleFileSelection = (event) => {
-    const files = Array.from(event.target.files); // Convertir FileList a Array
+    const files = Array.from(event.target.files);
     if (files.length > 0) {
       setSelectedFiles(files);
-      // No modificamos queryText aquí, solo actualizamos el contador visual
     } else {
       setSelectedFiles([]);
     }
   };
 
-  // MODIFICADO: Sube todos los archivos en el estado `selectedFiles`
   const handleSendFile = async () => {
     if (selectedFiles.length === 0) return;
 
     const formData = new FormData();
     selectedFiles.forEach(file => {
-      formData.append('files', file); // Asegúrate de que el nombre del campo sea 'files' para tu backend de múltiples archivos
+      formData.append('files', file);
     });
 
     setIsLoading(true);
-    addMessage(`Subiendo ${selectedFiles.length} archivo(s)...`, 'user'); // Mensaje genérico
+    addMessage(`Subiendo ${selectedFiles.length} archivo(s)...`, 'user');
 
     try {
       const response = await fetch("https://chatbot-python-7jfj.onrender.com/chatbot/upload", {
@@ -181,21 +228,21 @@ function ChatbotComponent({ authToken, onLogout }) {
       });
 
       if (response.ok) {
-        addMessage("Archivo(s) subido(s) correctamente. ¿En qué más puedo ayudarte con estos archivos?", 'bot');
+        addMessage("Archivo(s) subido(s) correctamente. ¿En qué más puedo ayudarte con estos archivos?", 'bot', true);
       } else if (response.status === 401) {
         initiateFarewell();
       } else {
-        addMessage("Error al subir el archivo(s). Inténtalo de nuevo.", 'bot');
+        addMessage("Error al subir el archivo(s). Inténtalo de nuevo.", 'bot', true);
       }
     } catch (error) {
       console.error("Error al subir el archivo(s):", error);
-      addMessage("Error al subir el archivo(s).", 'bot');
+      addMessage("Error al subir el archivo(s).", 'bot', true);
     } finally {
       setIsLoading(false);
-      setSelectedFiles([]); // Limpiar los archivos seleccionados después de intentar la subida
-      setQueryText(''); // Limpiar el campo de texto
+      setSelectedFiles([]);
+      setQueryText('');
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // También limpiar el valor del input de archivo
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -211,6 +258,11 @@ function ChatbotComponent({ authToken, onLogout }) {
     setShowFarewell(true);
     setFarewellPhase('typing');
     setTypedFarewellText('');
+  };
+
+  // Función para alternar el efecto de escritura
+  const toggleTypingEffect = () => {
+    setIsTypingEffectEnabled(prev => !prev);
   };
 
   if (showWelcome) {
@@ -356,6 +408,19 @@ function ChatbotComponent({ authToken, onLogout }) {
               <h1 className="text-xl font-bold text-white transition-colors duration-500">💻 Diogen-AI</h1>
             </div>
             <div className="flex items-center space-x-4">
+              {/* NUEVO BOTÓN: Para alternar el efecto de escritura */}
+              <button
+                onClick={toggleTypingEffect}
+                title={isTypingEffectEnabled ? "Desactivar efecto de escritura" : "Activar efecto de escritura"}
+                className={`relative p-3 rounded-xl transition-all duration-500 hover:scale-110 transform ${
+                  isTypingEffectEnabled
+                    ? (isDarkMode ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 hover:text-emerald-200' : 'bg-green-500/20 hover:bg-green-500/30 text-green-300 hover:text-green-200')
+                    : (isDarkMode ? 'bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200' : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200')
+                }`}
+              >
+                <Type className="w-5 h-5" />
+              </button>
+
               <button
                 onClick={toggleDarkMode}
                 className={`relative p-3 rounded-xl transition-all duration-500 hover:scale-110 transform ${
@@ -382,7 +447,7 @@ function ChatbotComponent({ authToken, onLogout }) {
       </header>
 
       <div className="relative z-10 flex flex-col h-[calc(100vh-80px)] animate-fadeInUp">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4"> {/* Eliminamos 'space-y-4' de aquí para controlarlo directamente en el mensaje */}
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 && (
               <div className="text-center py-12 animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
@@ -400,7 +465,8 @@ function ChatbotComponent({ authToken, onLogout }) {
             {messages.map((msg, index) => (
              <div
                 key={index}
-                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                // CAMBIO CLAVE AQUÍ: Añadimos 'mb-4' para el margen inferior
+                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn mb-4`}
               >
                 <div className={`flex items-start space-x-3 max-w-xs sm:max-w-md lg:max-w-lg xl:max-w-xl ${msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
@@ -427,9 +493,11 @@ function ChatbotComponent({ authToken, onLogout }) {
                         ? 'bg-gray-800/40 border-gray-600/30 text-gray-100'
                         : 'bg-white/10 border-white/20 text-white'
                   }`}>
-                    {/* MODIFICACIÓN AQUÍ */}
                     <p className="text-sm leading-relaxed">
-                      {msg.text.replace(/\*\*/g, '')} {/* Reemplaza ** con una cadena vacía */}
+                      {msg.isTyping ? msg.typedText.replace(/\*\*/g, '') : msg.text.replace(/\*\*/g, '')}
+                      {msg.sender === 'bot' && msg.isTyping && (
+                        <span className={`inline-block w-1 h-4 ml-1 animate-pulse ${isDarkMode ? 'bg-purple-400' : 'bg-blue-400'}`}></span>
+                      )}
                     </p>
                     <span className="text-xs opacity-60 mt-1 block">
                       {msg.timestamp.toLocaleTimeString()}
@@ -439,7 +507,7 @@ function ChatbotComponent({ authToken, onLogout }) {
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start animate-fadeIn">
+              <div className="flex justify-start animate-fadeIn mb-4"> {/* También añadimos 'mb-4' aquí */}
                 <div className="flex items-start space-x-3">
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
                     isDarkMode
@@ -478,7 +546,7 @@ function ChatbotComponent({ authToken, onLogout }) {
                   type="file"
                   id="archivo"
                   accept=".pdf"
-                  multiple // Permite seleccionar múltiples archivos
+                  multiple
                   onChange={handleFileSelection}
                   className="hidden"
                   ref={fileInputRef}
@@ -496,7 +564,7 @@ function ChatbotComponent({ authToken, onLogout }) {
                       ? 'text-purple-300 group-hover:text-purple-200'
                       : 'text-blue-300 group-hover:text-white'
                   }`} />
-                  {selectedFiles.length > 0 && ( // Mostrar contador solo si hay archivos
+                  {selectedFiles.length > 0 && (
                     <span className={`absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold text-white ${
                       isDarkMode ? 'bg-emerald-500' : 'bg-blue-600'
                     }`}>
@@ -511,7 +579,7 @@ function ChatbotComponent({ authToken, onLogout }) {
                   value={queryText}
                   onChange={(e) => setQueryText(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder="Escribe tu consulta aquí..." // Vuelve al placeholder original
+                  placeholder="Escribe tu consulta aquí..."
                   rows={1}
                   className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-500 resize-none backdrop-blur-lg ${
                     isDarkMode
@@ -523,7 +591,7 @@ function ChatbotComponent({ authToken, onLogout }) {
 
               <button
                 onClick={handleSendAction}
-                disabled={isLoading || (queryText.trim() === '' && selectedFiles.length === 0)} // Deshabilitar si no hay texto ni archivos
+                disabled={isLoading || (queryText.trim() === '' && selectedFiles.length === 0)}
                 className={`flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-300 hover:scale-110 disabled:opacity-70 disabled:cursor-not-allowed ${
                   isDarkMode
                     ? 'bg-gradient-to-r from-purple-600 to-pink-700 hover:from-purple-700 hover:to-pink-800 text-white'
