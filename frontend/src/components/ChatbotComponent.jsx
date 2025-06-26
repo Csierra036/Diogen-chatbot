@@ -29,21 +29,21 @@ function ChatbotComponent({ authToken, onLogout }) {
 
   const [showFarewell, setShowFarewell] = useState(false);
   const [farewellPhase, setFarewellPhase] = useState('typing');
-  const [typedFarewellText, setTypedFarewellText] = '';
+  const [typedFarewellText, setTypedFarewellText] = useState('');
   const farewellTextContent = "Hasta pronto";
 
-  // NUEVO ESTADO: Para controlar el efecto de escritura del bot
   const [isTypingEffectEnabled, setIsTypingEffectEnabled] = useState(() => {
-    // Inicializar desde localStorage, por defecto activado si no hay preferencia guardada
     const storedPreference = localStorage.getItem('typingEffectEnabled');
     return storedPreference === null ? true : JSON.parse(storedPreference);
   });
+
+  // Ref para el intervalo de escritura del bot
+  const typingIntervalRef = useRef(null);
 
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  // NUEVO useEffect: Guarda la preferencia del efecto de escritura en localStorage
   useEffect(() => {
     localStorage.setItem('typingEffectEnabled', JSON.stringify(isTypingEffectEnabled));
   }, [isTypingEffectEnabled]);
@@ -100,12 +100,38 @@ function ChatbotComponent({ authToken, onLogout }) {
     }
   }, [showFarewell, farewellPhase, farewellTextContent, onLogout]);
 
-  // MODIFICADO: Este useEffect ahora depende de `isTypingEffectEnabled`
+  // NUEVO useEffect para manejar la deshabilitación del efecto de escritura
+  // Este useEffect se encargará de "completar" los mensajes
+  // solo cuando isTypingEffectEnabled cambie a false.
   useEffect(() => {
     if (!isTypingEffectEnabled) {
-      // Si el efecto de escritura está deshabilitado, asegura que todos los mensajes estén completos
-      setMessages(prevMessages => prevMessages.map(msg => ({ ...msg, isTyping: false, typedText: msg.text })));
-      return; // Sale del useEffect si el efecto está deshabilitado
+      // Solo actualizamos si hay mensajes que aún están "typing"
+      setMessages(prevMessages => {
+        const needsUpdate = prevMessages.some(msg => msg.isTyping);
+        if (needsUpdate) {
+          return prevMessages.map(msg => ({
+            ...msg,
+            isTyping: false,
+            typedText: msg.text // Asegura que el texto completo esté visible
+          }));
+        }
+        return prevMessages; // No hay cambios si no es necesario
+      });
+    }
+  }, [isTypingEffectEnabled]); // Dependencia clave: solo se ejecuta cuando isTypingEffectEnabled cambia
+
+  // MODIFICADO: useEffect principal para el efecto de escritura
+  useEffect(() => {
+    // Limpiar cualquier intervalo anterior al inicio o al cambio de dependencias
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+    }
+
+    // Si el efecto está deshabilitado, no hacemos nada aquí.
+    // La lógica de completar los mensajes la maneja el nuevo useEffect.
+    if (!isTypingEffectEnabled) {
+      return;
     }
 
     const lastBotMessageIndex = messages.findLastIndex(msg => msg.sender === 'bot' && msg.isTyping);
@@ -115,26 +141,44 @@ function ChatbotComponent({ authToken, onLogout }) {
       let currentIndex = messageToType.typedText.length;
       const fullText = messageToType.text;
 
-      const typingInterval = setInterval(() => {
-        if (currentIndex < fullText.length) {
+      // Solo iniciar el temporizador si el mensaje no está completo
+      if (currentIndex < fullText.length) {
+        typingIntervalRef.current = setInterval(() => {
           setMessages(prevMessages => prevMessages.map((msg, index) =>
             index === lastBotMessageIndex
               ? { ...msg, typedText: fullText.slice(0, currentIndex + 1) }
               : msg
           ));
           currentIndex++;
-        } else {
-          clearInterval(typingInterval);
-          setMessages(prevMessages => prevMessages.map((msg, index) =>
-            index === lastBotMessageIndex
-              ? { ...msg, isTyping: false }
-              : msg
-          ));
-        }
-      }, 30);
-      return () => clearInterval(typingInterval);
+          if (currentIndex >= fullText.length) {
+            clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+            setMessages(prevMessages => prevMessages.map((msg, index) =>
+              index === lastBotMessageIndex
+                ? { ...msg, isTyping: false }
+                : msg
+            ));
+          }
+        }, 30);
+      } else {
+        // Si el mensaje ya está completo, solo asegura que isTyping sea false
+        setMessages(prevMessages => prevMessages.map((msg, index) =>
+          index === lastBotMessageIndex
+            ? { ...msg, isTyping: false }
+            : msg
+        ));
+      }
     }
-  }, [messages, isTypingEffectEnabled]); // Añadido isTypingEffectEnabled como dependencia
+
+    return () => {
+      // Función de limpieza: Limpiar el intervalo cuando el componente se desmonte
+      // o antes de que el efecto se re-ejecute
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+    };
+  }, [messages, isTypingEffectEnabled]); // isTypingEffectEnabled como dependencia
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -145,7 +189,7 @@ function ChatbotComponent({ authToken, onLogout }) {
       text,
       sender,
       timestamp: new Date(),
-      isTyping: isTyping && isTypingEffectEnabled, // Solo activa isTyping si el efecto está habilitado
+      isTyping: isTyping && isTypingEffectEnabled,
       typedText: (isTyping && isTypingEffectEnabled) ? '' : text
     }]);
   };
@@ -260,7 +304,6 @@ function ChatbotComponent({ authToken, onLogout }) {
     setTypedFarewellText('');
   };
 
-  // Función para alternar el efecto de escritura
   const toggleTypingEffect = () => {
     setIsTypingEffectEnabled(prev => !prev);
   };
@@ -272,13 +315,12 @@ function ChatbotComponent({ authToken, onLogout }) {
           ? "bg-gradient-to-br from-gray-900 via-slate-900 to-black"
           : "bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900"
       }`}>
-        {/* Animated Background for Welcome */}
         <div className="absolute inset-0">
           <div className={`absolute top-20 left-10 w-40 h-40 rounded-full blur-2xl animate-pulse transition-all duration-1000 ${isDarkMode ? 'bg-purple-400/30' : 'bg-blue-400/30'}`}></div>
           <div className={`absolute top-40 right-20 w-32 h-32 rounded-full blur-xl animate-bounce transition-all duration-1000 ${isDarkMode ? 'bg-pink-400/40' : 'bg-indigo-400/40'}`} style={{ animationDuration: '3s' }}></div>
           <div className={`absolute bottom-32 left-20 w-48 h-48 rounded-full blur-3xl animate-pulse transition-all duration-1000 ${isDarkMode ? 'bg-indigo-400/20' : 'bg-cyan-400/20'}`} style={{ animationDelay: '1s' }}></div>
           <div className={`absolute bottom-20 right-10 w-36 h-36 rounded-full blur-2xl animate-bounce transition-all duration-1000 ${isDarkMode ? 'bg-cyan-300/30' : 'bg-blue-300/30'}`} style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
-          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'}`} style={{ animationDelay: '0.5s' }}></div>
+          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'}`}></div>
           <div className={`absolute top-3/4 right-1/3 w-2 h-2 rounded-full animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-pink-300/80' : 'bg-blue-300/80'}`} style={{ animationDelay: '1.5s' }}></div>
           <div className={`absolute top-1/2 left-1/6 w-2.5 h-2.5 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-cyan-300/70' : 'bg-indigo-300/70'}`} style={{ animationDelay: '2.5s' }}></div>
           <div className={`absolute top-1/3 right-1/4 w-1 h-1 rounded-full animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-yellow-300/60' : 'bg-white/60'}`} style={{ animationDelay: '3s' }}></div>
@@ -326,13 +368,12 @@ function ChatbotComponent({ authToken, onLogout }) {
           ? "bg-gradient-to-br from-gray-900 via-slate-900 to-black"
           : "bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900"
       }`}>
-        {/* Animated Background for Farewell */}
         <div className="absolute inset-0">
           <div className={`absolute top-20 left-10 w-40 h-40 rounded-full blur-2xl animate-pulse transition-all duration-1000 ${isDarkMode ? 'bg-purple-400/30' : 'bg-blue-400/30'}`}></div>
           <div className={`absolute top-40 right-20 w-32 h-32 rounded-full blur-xl animate-bounce transition-all duration-1000 ${isDarkMode ? 'bg-pink-400/40' : 'bg-indigo-400/40'}`} style={{ animationDuration: '3s' }}></div>
           <div className={`absolute bottom-32 left-20 w-48 h-48 rounded-full blur-3xl animate-pulse transition-all duration-1000 ${isDarkMode ? 'bg-indigo-400/20' : 'bg-cyan-400/20'}`} style={{ animationDelay: '1s' }}></div>
           <div className={`absolute bottom-20 right-10 w-36 h-36 rounded-full blur-2xl animate-bounce transition-all duration-1000 ${isDarkMode ? 'bg-cyan-300/30' : 'bg-blue-300/30'}`} style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
-          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'}`} style={{ animationDelay: '0.5s' }}></div>
+          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'}`}></div>
           <div className={`absolute top-3/4 right-1/3 w-2 h-2 rounded-full animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-pink-300/80' : 'bg-blue-300/80'}`} style={{ animationDelay: '1.5s' }}></div>
           <div className={`absolute top-1/2 left-1/6 w-2.5 h-2.5 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-cyan-300/70' : 'bg-indigo-300/70'}`} style={{ animationDelay: '2.5s' }}></div>
           <div className={`absolute top-1/3 right-1/4 w-1 h-1 rounded-full animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-yellow-300/60' : 'bg-white/60'}`} style={{ animationDelay: '3s' }}></div>
@@ -384,7 +425,7 @@ function ChatbotComponent({ authToken, onLogout }) {
         <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-bounce transition-all duration-700 ${isDarkMode ? 'bg-pink-400/30' : 'bg-indigo-400/30'}`} style={{ animationDuration: '3s' }}></div>
         <div className={`absolute bottom-32 left-20 w-40 h-40 rounded-full blur-2xl animate-pulse transition-all duration-700 ${isDarkMode ? 'bg-indigo-400/15' : 'bg-cyan-400/15'}`} style={{ animationDelay: '1s' }}></div>
         <div className={`absolute bottom-20 right-10 w-28 h-28 rounded-full blur-xl animate-bounce transition-all duration-700 ${isDarkMode ? 'bg-cyan-300/25' : 'bg-blue-300/25'}`} style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
-        <div className={`absolute top-1/4 left-1/4 w-2 h-2 rotate-45 animate-ping transition-all duration-700 ${isDarkMode ? 'bg-purple-300/40' : 'bg-white/40'}`} style={{ animationDelay: '0.5s' }}></div>
+        <div className={`absolute top-1/4 left-1/4 w-2 h-2 rotate-45 animate-ping transition-all duration-700 ${isDarkMode ? 'bg-purple-300/40' : 'bg-white/40'}`}></div>
         <div className={`absolute top-3/4 right-1/3 w-1 h-1 rounded-full animate-ping transition-all duration-700 ${isDarkMode ? 'bg-pink-300/60' : 'bg-blue-300/60'}`} style={{ animationDelay: '1.5s' }}></div>
         <div className={`absolute top-1/2 left-1/6 w-1.5 h-1.5 rotate-45 animate-ping transition-all duration-700 ${isDarkMode ? 'bg-cyan-300/50' : 'bg-indigo-300/50'}`} style={{ animationDelay: '2.5s' }}></div>
         <div className={`absolute inset-0 transition-all duration-700 ${
@@ -408,7 +449,6 @@ function ChatbotComponent({ authToken, onLogout }) {
               <h1 className="text-xl font-bold text-white transition-colors duration-500">💻 Diogen-AI</h1>
             </div>
             <div className="flex items-center space-x-4">
-              {/* NUEVO BOTÓN: Para alternar el efecto de escritura */}
               <button
                 onClick={toggleTypingEffect}
                 title={isTypingEffectEnabled ? "Desactivar efecto de escritura" : "Activar efecto de escritura"}
@@ -447,7 +487,7 @@ function ChatbotComponent({ authToken, onLogout }) {
       </header>
 
       <div className="relative z-10 flex flex-col h-[calc(100vh-80px)] animate-fadeInUp">
-        <div className="flex-1 overflow-y-auto p-4"> {/* Eliminamos 'space-y-4' de aquí para controlarlo directamente en el mensaje */}
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 && (
               <div className="text-center py-12 animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
@@ -465,7 +505,6 @@ function ChatbotComponent({ authToken, onLogout }) {
             {messages.map((msg, index) => (
              <div
                 key={index}
-                // CAMBIO CLAVE AQUÍ: Añadimos 'mb-4' para el margen inferior
                 className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn mb-4`}
               >
                 <div className={`flex items-start space-x-3 max-w-xs sm:max-w-md lg:max-w-lg xl:max-w-xl ${msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
@@ -507,7 +546,7 @@ function ChatbotComponent({ authToken, onLogout }) {
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start animate-fadeIn mb-4"> {/* También añadimos 'mb-4' aquí */}
+              <div className="flex justify-start animate-fadeIn mb-4">
                 <div className="flex items-start space-x-3">
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
                     isDarkMode
