@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react'; // Asegúrate de importar useEffect
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { Sparkles, Moon, Sun, CheckCircle } from 'lucide-react';
+import { Moon, Sun, CheckCircle } from 'lucide-react'; // Ya no necesitamos Sparkles aquí
+
+// Importa tu imagen de logo
+import YourLogo from '../assets/logo.png'; // ASEGÚRATE DE QUE LA RUTA SEA CORRECTA PARA TU IMAGEN
 
 function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -9,14 +12,17 @@ function Login({ onLoginSuccess }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(false);
-  const [showFormTransition, setShowFormTransition] = useState(false); // Para controlar la transición del formulario
+  const [showFormTransition, setShowFormTransition] = useState(false);
 
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode } = useTheme();
 
-  // useEffect para que el formulario de login "aparezca" al cargar la página
   useEffect(() => {
-    setShowFormTransition(false); // Al montar, asegúrate de que esté visible para la animación de entrada
+    const timer = setTimeout(() => {
+      setShowFormTransition(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleLogin = async (e) => {
@@ -37,21 +43,14 @@ function Login({ onLoginSuccess }) {
         const data = await response.json();
         onLoginSuccess(data.access_token);
 
-        // Paso 1: Iniciar la transición de desvanecimiento del formulario de login
-        setShowFormTransition(true); // Activa la salida del formulario de login
+        setShowFormTransition(true);
 
         setTimeout(() => {
-          // Después de que el formulario se desvanezca, mostrar la animación de bienvenida
           setShowWelcomeAnimation(true);
-          // Opcional: Podrías resetear los campos aquí si no quieres que se vean cuando la animación termine
-          // setEmail('');
-          // setPassword('');
-
           setTimeout(() => {
-            // Redirigir al chatbot después de la animación de bienvenida
             navigate('/chatbot');
-          }, 2500); // Tiempo para que la animación de bienvenida se muestre
-        }, 500); // Tiempo para que el formulario de login se desvanezca (debe coincidir con la duración de la transición)
+          }, 2500);
+        }, 500);
       } else {
         const errorData = await response.json();
         setError(errorData.detail || "Credenciales incorrectas.");
@@ -64,13 +63,12 @@ function Login({ onLoginSuccess }) {
     }
   };
 
-  // Función para manejar el clic en el enlace de registro
   const handleRegisterLinkClick = (e) => {
-    e.preventDefault(); // Evita la navegación inmediata
-    setShowFormTransition(true); // Inicia la transición de desvanecimiento del formulario actual
+    e.preventDefault();
+    setShowFormTransition(true);
     setTimeout(() => {
-      navigate('/register'); // Navega después de que el formulario se desvanezca
-    }, 500); // Coincide con la duración de la transición
+      navigate('/register');
+    }, 500);
   };
 
   return (
@@ -106,12 +104,26 @@ function Login({ onLoginSuccess }) {
         }`} style={{ animationDelay: '2.5s' }}></div>
       </div>
 
-      {/* Contenido del formulario de Login con transición de desvanecimiento */}
-      <div className={`relative z-10 w-full max-w-md mx-auto p-8 rounded-2xl shadow-xl backdrop-blur-lg border transition-all duration-500 ${ // Duración de 500ms
+      {/* Contenedor para el logo - círculo más grande que el logo */}
+      <div className={`relative z-10 text-center mb-8 animate-fadeInUp transition-opacity duration-500 ${showFormTransition ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`} style={{ animationDelay: '0.2s' }}>
+        <div className={`inline-flex items-center justify-center w-36 h-36 rounded-full mb-4 shadow-xl transition-all duration-500 ${
+          isDarkMode
+            ? 'bg-gradient-to-r from-purple-500 to-pink-600'
+            : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+        }`}>
+          <img
+            src={YourLogo}
+            alt="Diogen-AI Logo"
+            className="w-28 h-28 object-cover rounded-full "
+            style={{   padding: '0.1rem', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)' }}
+          />
+        </div>
+      </div>
+      <div className={`relative z-10 w-full max-w-md mx-auto p-8 rounded-2xl shadow-xl backdrop-blur-lg border transition-all duration-500 ${
         isDarkMode
           ? 'bg-gray-800/30 border-gray-700/50'
           : 'bg-white/10 border-white/20'
-      } ${showFormTransition ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100 animate-fadeInUp'}`}> {/* Aquí la clase de transición */}
+      } ${showFormTransition ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100 animate-fadeInUp'}`} style={{ animationDelay: '0.4s' }}>
         <div className="flex justify-end mb-4">
           <button
             onClick={toggleDarkMode}
@@ -137,13 +149,6 @@ function Login({ onLoginSuccess }) {
         </div>
 
         <div className="text-center mb-8">
-          <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 shadow-xl transition-all duration-500 ${
-            isDarkMode
-              ? 'bg-gradient-to-r from-purple-500 to-pink-600'
-              : 'bg-gradient-to-r from-blue-500 to-indigo-600'
-          }`}>
-            <Sparkles className="w-10 h-10 text-white animate-pulse" />
-          </div>
           <h2 className={`text-4xl font-extrabold transition-colors duration-500 ${
             isDarkMode ? 'text-white' : 'text-gray-100'
           }`}>Iniciar Sesión</h2>
@@ -199,7 +204,7 @@ function Login({ onLoginSuccess }) {
 
           <button
             type="submit"
-            disabled={isLoading || showFormTransition} // Deshabilitar durante la transición
+            disabled={isLoading || showFormTransition}
             className={`w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed ${
               isDarkMode
                 ? 'bg-gradient-to-r from-purple-600 to-pink-700 hover:from-purple-700 hover:to-pink-800'
@@ -223,7 +228,7 @@ function Login({ onLoginSuccess }) {
           ¿No tienes una cuenta?{' '}
           <Link
             to="/register"
-            onClick={handleRegisterLinkClick} // Añadir el onClick aquí
+            onClick={handleRegisterLinkClick}
             className={`font-medium transition-colors duration-300 hover:underline ${
               isDarkMode ? 'text-purple-400 hover:text-purple-300' : 'text-blue-300 hover:text-blue-200'
             }`}>
@@ -232,53 +237,51 @@ function Login({ onLoginSuccess }) {
         </p>
       </div>
 
-     {/* Welcome/Success Animation Overlay - Sin recuadro */}
       {showWelcomeAnimation && (
         <div className={`fixed inset-0 z-50 transition-all duration-700 ${
-            isDarkMode ? 'bg-black/0' : 'bg-slate-900/0' // Puedes ajustar esta opacidad si quieres un ligero oscurecimiento
+            isDarkMode ? 'bg-black/0' : 'bg-slate-900/0'
           } animate-fadeOutOpacity`}>
-          {/* Este div está intencionalmente vacío para solo manejar la transición */}
         </div>
       )}
 
-  <style>{`
-      /* New animation for a subtle fade-out overlay */
-        @keyframes fadeOutOpacity {
-          from { opacity: 1; }
-          to { opacity: 0; }
+    <style>{`
+        /* New animation for a subtle fade-out overlay */
+          @keyframes fadeOutOpacity {
+            from { opacity: 1; }
+            to { opacity: 0; }
+          }
+          .animate-fadeOutOpacity {
+            animation: fadeOutOpacity 0.1s ease-out forwards;
+          }
+
+        /* Animación para la entrada del formulario y el logo */
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fadeOutOpacity {
-          animation: fadeOutOpacity 0.1s ease-out forwards; /* Ajusta la duración si es necesario */
+        .animate-fadeInUp {
+          animation: fadeInUp 0.5s ease-out forwards;
         }
 
-      /* Animación para la entrada del formulario */
-      @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .animate-fadeInUp {
-        animation: fadeInUp 0.5s ease-out forwards;
-      }
+        /* Animaciones de pop y bounce (si las usas en otras partes) */
+        @keyframes popIn {
+          0% { transform: scale(0.8); opacity: 0; }
+          50% { transform: scale(1.05); opacity: 1; }
+          100% { transform: scale(1); }
+        }
+        .animate-popIn {
+          animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+        }
 
-      /* Animaciones de pop y bounce (si las usas en otras partes) */
-      @keyframes popIn {
-        0% { transform: scale(0.8); opacity: 0; }
-        50% { transform: scale(1.05); opacity: 1; }
-        100% { transform: scale(1); }
-      }
-      .animate-popIn {
-        animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
-      }
-
-      @keyframes bounceIn {
-        0% { transform: scale(0.1); opacity: 0; }
-        60% { transform: scale(1.2); opacity: 1; }
-        100% { transform: scale(1); }
-      }
-      .animate-bounceIn {
-        animation: bounceIn 0.8s ease-out;
-      }
-  `}</style>
+        @keyframes bounceIn {
+          0% { transform: scale(0.1); opacity: 0; }
+          60% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(1); }
+        }
+        .animate-bounceIn {
+          animation: bounceIn 0.8s ease-out;
+        }
+    `}</style>
     </div>
   );
 }

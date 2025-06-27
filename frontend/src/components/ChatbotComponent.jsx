@@ -9,7 +9,8 @@ import {
   Bot,
   User,
   Sparkles,
-  MessageCircle
+  MessageCircle,
+  Type // Icono para el efecto de escritura
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext'; // Importar el hook useTheme
 
@@ -19,7 +20,7 @@ function ChatbotComponent({ authToken, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [queryText, setQueryText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState([]); // Cambiado a un array para múltiples archivos
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   const [showWelcome, setShowWelcome] = useState(true);
   const [welcomePhase, setWelcomePhase] = useState('typing');
@@ -31,9 +32,21 @@ function ChatbotComponent({ authToken, onLogout }) {
   const [typedFarewellText, setTypedFarewellText] = useState('');
   const farewellTextContent = "Hasta pronto";
 
+  const [isTypingEffectEnabled, setIsTypingEffectEnabled] = useState(() => {
+    const storedPreference = localStorage.getItem('typingEffectEnabled');
+    return storedPreference === null ? true : JSON.parse(storedPreference);
+  });
+
+  // Ref para el intervalo de escritura del bot
+  const typingIntervalRef = useRef(null);
+
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('typingEffectEnabled', JSON.stringify(isTypingEffectEnabled));
+  }, [isTypingEffectEnabled]);
 
   useEffect(() => {
     if (!authToken && !showFarewell) {
@@ -87,29 +100,110 @@ function ChatbotComponent({ authToken, onLogout }) {
     }
   }, [showFarewell, farewellPhase, farewellTextContent, onLogout]);
 
+  // NUEVO useEffect para manejar la deshabilitación del efecto de escritura
+  // Este useEffect se encargará de "completar" los mensajes
+  // solo cuando isTypingEffectEnabled cambie a false.
+  useEffect(() => {
+    if (!isTypingEffectEnabled) {
+      // Solo actualizamos si hay mensajes que aún están "typing"
+      setMessages(prevMessages => {
+        const needsUpdate = prevMessages.some(msg => msg.isTyping);
+        if (needsUpdate) {
+          return prevMessages.map(msg => ({
+            ...msg,
+            isTyping: false,
+            typedText: msg.text // Asegura que el texto completo esté visible
+          }));
+        }
+        return prevMessages; // No hay cambios si no es necesario
+      });
+    }
+  }, [isTypingEffectEnabled]); // Dependencia clave: solo se ejecuta cuando isTypingEffectEnabled cambia
+
+  // MODIFICADO: useEffect principal para el efecto de escritura
+  useEffect(() => {
+    // Limpiar cualquier intervalo anterior al inicio o al cambio de dependencias
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+    }
+
+    // Si el efecto está deshabilitado, no hacemos nada aquí.
+    // La lógica de completar los mensajes la maneja el nuevo useEffect.
+    if (!isTypingEffectEnabled) {
+      return;
+    }
+
+    const lastBotMessageIndex = messages.findLastIndex(msg => msg.sender === 'bot' && msg.isTyping);
+
+    if (lastBotMessageIndex !== -1) {
+      const messageToType = messages[lastBotMessageIndex];
+      let currentIndex = messageToType.typedText.length;
+      const fullText = messageToType.text;
+
+      // Solo iniciar el temporizador si el mensaje no está completo
+      if (currentIndex < fullText.length) {
+        typingIntervalRef.current = setInterval(() => {
+          setMessages(prevMessages => prevMessages.map((msg, index) =>
+            index === lastBotMessageIndex
+              ? { ...msg, typedText: fullText.slice(0, currentIndex + 1) }
+              : msg
+          ));
+          currentIndex++;
+          if (currentIndex >= fullText.length) {
+            clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+            setMessages(prevMessages => prevMessages.map((msg, index) =>
+              index === lastBotMessageIndex
+                ? { ...msg, isTyping: false }
+                : msg
+            ));
+          }
+        }, 30);
+      } else {
+        // Si el mensaje ya está completo, solo asegura que isTyping sea false
+        setMessages(prevMessages => prevMessages.map((msg, index) =>
+          index === lastBotMessageIndex
+            ? { ...msg, isTyping: false }
+            : msg
+        ));
+      }
+    }
+
+    return () => {
+      // Función de limpieza: Limpiar el intervalo cuando el componente se desmonte
+      // o antes de que el efecto se re-ejecute
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+    };
+  }, [messages, isTypingEffectEnabled]); // isTypingEffectEnabled como dependencia
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addMessage = (text, sender) => {
+  const addMessage = (text, sender, isTyping = false) => {
     setMessages(prevMessages => [...prevMessages, {
       text,
       sender,
-      timestamp: new Date()
+      timestamp: new Date(),
+      isTyping: isTyping && isTypingEffectEnabled,
+      typedText: (isTyping && isTypingEffectEnabled) ? '' : text
     }]);
   };
 
   const handleSendAction = async () => {
     if (queryText.trim() !== '') {
       await handleSendMessage();
-    } else if (selectedFiles.length > 0) { // Revisar si hay archivos seleccionados
+    } else if (selectedFiles.length > 0) {
       await handleSendFile();
     }
-    // Después de enviar, limpiar cualquier archivo seleccionado y el campo de texto
     setSelectedFiles([]);
     setQueryText('');
     if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Limpiar el input de archivo HTML
+      fileInputRef.current.value = "";
     }
   };
 
@@ -134,42 +228,39 @@ function ChatbotComponent({ authToken, onLogout }) {
       if (response.ok) {
         const data = await response.json();
         const botResponse = typeof data === "string" ? data : JSON.stringify(data);
-        addMessage(botResponse, 'bot');
+        addMessage(botResponse, 'bot', true);
       } else if (response.status === 401) {
         initiateFarewell();
       } else {
-        addMessage("Error al procesar tu consulta. Inténtalo de nuevo.", 'bot');
+        addMessage("Error al procesar tu consulta. Inténtalo de nuevo.", 'bot', true);
       }
     } catch (error) {
       console.error("Error al conectar con el servidor:", error);
-      addMessage("Error al conectar con el servidor.", 'bot');
+      addMessage("Error al conectar con el servidor.", 'bot', true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // MODIFICADO: Guarda múltiples archivos en el estado
   const handleFileSelection = (event) => {
-    const files = Array.from(event.target.files); // Convertir FileList a Array
+    const files = Array.from(event.target.files);
     if (files.length > 0) {
       setSelectedFiles(files);
-      // No modificamos queryText aquí, solo actualizamos el contador visual
     } else {
       setSelectedFiles([]);
     }
   };
 
-  // MODIFICADO: Sube todos los archivos en el estado `selectedFiles`
   const handleSendFile = async () => {
     if (selectedFiles.length === 0) return;
 
     const formData = new FormData();
     selectedFiles.forEach(file => {
-      formData.append('files', file); // Asegúrate de que el nombre del campo sea 'files' para tu backend de múltiples archivos
+      formData.append('files', file);
     });
 
     setIsLoading(true);
-    addMessage(`Subiendo ${selectedFiles.length} archivo(s)...`, 'user'); // Mensaje genérico
+    addMessage(`Subiendo ${selectedFiles.length} archivo(s)...`, 'user');
 
     try {
       const response = await fetch("https://chatbot-python-7jfj.onrender.com/chatbot/upload", {
@@ -181,21 +272,21 @@ function ChatbotComponent({ authToken, onLogout }) {
       });
 
       if (response.ok) {
-        addMessage("Archivo(s) subido(s) correctamente. ¿En qué más puedo ayudarte con estos archivos?", 'bot');
+        addMessage("Archivo(s) subido(s) correctamente. ¿En qué más puedo ayudarte con estos archivos?", 'bot', true);
       } else if (response.status === 401) {
         initiateFarewell();
       } else {
-        addMessage("Error al subir el archivo(s). Inténtalo de nuevo.", 'bot');
+        addMessage("Error al subir el archivo(s). Inténtalo de nuevo.", 'bot', true);
       }
     } catch (error) {
       console.error("Error al subir el archivo(s):", error);
-      addMessage("Error al subir el archivo(s).", 'bot');
+      addMessage("Error al subir el archivo(s).", 'bot', true);
     } finally {
       setIsLoading(false);
-      setSelectedFiles([]); // Limpiar los archivos seleccionados después de intentar la subida
-      setQueryText(''); // Limpiar el campo de texto
+      setSelectedFiles([]);
+      setQueryText('');
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // También limpiar el valor del input de archivo
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -213,6 +304,10 @@ function ChatbotComponent({ authToken, onLogout }) {
     setTypedFarewellText('');
   };
 
+  const toggleTypingEffect = () => {
+    setIsTypingEffectEnabled(prev => !prev);
+  };
+
   if (showWelcome) {
     return (
       <div className={`min-h-screen relative overflow-hidden transition-all duration-1000 ease-in-out ${
@@ -220,13 +315,12 @@ function ChatbotComponent({ authToken, onLogout }) {
           ? "bg-gradient-to-br from-gray-900 via-slate-900 to-black"
           : "bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900"
       }`}>
-        {/* Animated Background for Welcome */}
         <div className="absolute inset-0">
           <div className={`absolute top-20 left-10 w-40 h-40 rounded-full blur-2xl animate-pulse transition-all duration-1000 ${isDarkMode ? 'bg-purple-400/30' : 'bg-blue-400/30'}`}></div>
           <div className={`absolute top-40 right-20 w-32 h-32 rounded-full blur-xl animate-bounce transition-all duration-1000 ${isDarkMode ? 'bg-pink-400/40' : 'bg-indigo-400/40'}`} style={{ animationDuration: '3s' }}></div>
           <div className={`absolute bottom-32 left-20 w-48 h-48 rounded-full blur-3xl animate-pulse transition-all duration-1000 ${isDarkMode ? 'bg-indigo-400/20' : 'bg-cyan-400/20'}`} style={{ animationDelay: '1s' }}></div>
           <div className={`absolute bottom-20 right-10 w-36 h-36 rounded-full blur-2xl animate-bounce transition-all duration-1000 ${isDarkMode ? 'bg-cyan-300/30' : 'bg-blue-300/30'}`} style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
-          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'}`} style={{ animationDelay: '0.5s' }}></div>
+          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'}`}></div>
           <div className={`absolute top-3/4 right-1/3 w-2 h-2 rounded-full animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-pink-300/80' : 'bg-blue-300/80'}`} style={{ animationDelay: '1.5s' }}></div>
           <div className={`absolute top-1/2 left-1/6 w-2.5 h-2.5 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-cyan-300/70' : 'bg-indigo-300/70'}`} style={{ animationDelay: '2.5s' }}></div>
           <div className={`absolute top-1/3 right-1/4 w-1 h-1 rounded-full animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-yellow-300/60' : 'bg-white/60'}`} style={{ animationDelay: '3s' }}></div>
@@ -274,13 +368,12 @@ function ChatbotComponent({ authToken, onLogout }) {
           ? "bg-gradient-to-br from-gray-900 via-slate-900 to-black"
           : "bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900"
       }`}>
-        {/* Animated Background for Farewell */}
         <div className="absolute inset-0">
           <div className={`absolute top-20 left-10 w-40 h-40 rounded-full blur-2xl animate-pulse transition-all duration-1000 ${isDarkMode ? 'bg-purple-400/30' : 'bg-blue-400/30'}`}></div>
           <div className={`absolute top-40 right-20 w-32 h-32 rounded-full blur-xl animate-bounce transition-all duration-1000 ${isDarkMode ? 'bg-pink-400/40' : 'bg-indigo-400/40'}`} style={{ animationDuration: '3s' }}></div>
           <div className={`absolute bottom-32 left-20 w-48 h-48 rounded-full blur-3xl animate-pulse transition-all duration-1000 ${isDarkMode ? 'bg-indigo-400/20' : 'bg-cyan-400/20'}`} style={{ animationDelay: '1s' }}></div>
           <div className={`absolute bottom-20 right-10 w-36 h-36 rounded-full blur-2xl animate-bounce transition-all duration-1000 ${isDarkMode ? 'bg-cyan-300/30' : 'bg-blue-300/30'}`} style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
-          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'}`} style={{ animationDelay: '0.5s' }}></div>
+          <div className={`absolute top-1/4 left-1/4 w-3 h-3 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-purple-300/60' : 'bg-white/60'}`}></div>
           <div className={`absolute top-3/4 right-1/3 w-2 h-2 rounded-full animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-pink-300/80' : 'bg-blue-300/80'}`} style={{ animationDelay: '1.5s' }}></div>
           <div className={`absolute top-1/2 left-1/6 w-2.5 h-2.5 rotate-45 animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-cyan-300/70' : 'bg-indigo-300/70'}`} style={{ animationDelay: '2.5s' }}></div>
           <div className={`absolute top-1/3 right-1/4 w-1 h-1 rounded-full animate-ping transition-all duration-1000 ${isDarkMode ? 'bg-yellow-300/60' : 'bg-white/60'}`} style={{ animationDelay: '3s' }}></div>
@@ -332,7 +425,7 @@ function ChatbotComponent({ authToken, onLogout }) {
         <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-bounce transition-all duration-700 ${isDarkMode ? 'bg-pink-400/30' : 'bg-indigo-400/30'}`} style={{ animationDuration: '3s' }}></div>
         <div className={`absolute bottom-32 left-20 w-40 h-40 rounded-full blur-2xl animate-pulse transition-all duration-700 ${isDarkMode ? 'bg-indigo-400/15' : 'bg-cyan-400/15'}`} style={{ animationDelay: '1s' }}></div>
         <div className={`absolute bottom-20 right-10 w-28 h-28 rounded-full blur-xl animate-bounce transition-all duration-700 ${isDarkMode ? 'bg-cyan-300/25' : 'bg-blue-300/25'}`} style={{ animationDuration: '4s', animationDelay: '2s' }}></div>
-        <div className={`absolute top-1/4 left-1/4 w-2 h-2 rotate-45 animate-ping transition-all duration-700 ${isDarkMode ? 'bg-purple-300/40' : 'bg-white/40'}`} style={{ animationDelay: '0.5s' }}></div>
+        <div className={`absolute top-1/4 left-1/4 w-2 h-2 rotate-45 animate-ping transition-all duration-700 ${isDarkMode ? 'bg-purple-300/40' : 'bg-white/40'}`}></div>
         <div className={`absolute top-3/4 right-1/3 w-1 h-1 rounded-full animate-ping transition-all duration-700 ${isDarkMode ? 'bg-pink-300/60' : 'bg-blue-300/60'}`} style={{ animationDelay: '1.5s' }}></div>
         <div className={`absolute top-1/2 left-1/6 w-1.5 h-1.5 rotate-45 animate-ping transition-all duration-700 ${isDarkMode ? 'bg-cyan-300/50' : 'bg-indigo-300/50'}`} style={{ animationDelay: '2.5s' }}></div>
         <div className={`absolute inset-0 transition-all duration-700 ${
@@ -356,6 +449,18 @@ function ChatbotComponent({ authToken, onLogout }) {
               <h1 className="text-xl font-bold text-white transition-colors duration-500">💻 Diogen-AI</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={toggleTypingEffect}
+                title={isTypingEffectEnabled ? "Desactivar efecto de escritura" : "Activar efecto de escritura"}
+                className={`relative p-3 rounded-xl transition-all duration-500 hover:scale-110 transform ${
+                  isTypingEffectEnabled
+                    ? (isDarkMode ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 hover:text-emerald-200' : 'bg-green-500/20 hover:bg-green-500/30 text-green-300 hover:text-green-200')
+                    : (isDarkMode ? 'bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200' : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200')
+                }`}
+              >
+                <Type className="w-5 h-5" />
+              </button>
+
               <button
                 onClick={toggleDarkMode}
                 className={`relative p-3 rounded-xl transition-all duration-500 hover:scale-110 transform ${
@@ -382,7 +487,7 @@ function ChatbotComponent({ authToken, onLogout }) {
       </header>
 
       <div className="relative z-10 flex flex-col h-[calc(100vh-80px)] animate-fadeInUp">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 && (
               <div className="text-center py-12 animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
@@ -400,7 +505,7 @@ function ChatbotComponent({ authToken, onLogout }) {
             {messages.map((msg, index) => (
              <div
                 key={index}
-                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn mb-4`}
               >
                 <div className={`flex items-start space-x-3 max-w-xs sm:max-w-md lg:max-w-lg xl:max-w-xl ${msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
@@ -427,9 +532,11 @@ function ChatbotComponent({ authToken, onLogout }) {
                         ? 'bg-gray-800/40 border-gray-600/30 text-gray-100'
                         : 'bg-white/10 border-white/20 text-white'
                   }`}>
-                    {/* MODIFICACIÓN AQUÍ */}
                     <p className="text-sm leading-relaxed">
-                      {msg.text.replace(/\*\*/g, '')} {/* Reemplaza ** con una cadena vacía */}
+                      {msg.isTyping ? msg.typedText.replace(/\*\*/g, '') : msg.text.replace(/\*\*/g, '')}
+                      {msg.sender === 'bot' && msg.isTyping && (
+                        <span className={`inline-block w-1 h-4 ml-1 animate-pulse ${isDarkMode ? 'bg-purple-400' : 'bg-blue-400'}`}></span>
+                      )}
                     </p>
                     <span className="text-xs opacity-60 mt-1 block">
                       {msg.timestamp.toLocaleTimeString()}
@@ -439,7 +546,7 @@ function ChatbotComponent({ authToken, onLogout }) {
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start animate-fadeIn">
+              <div className="flex justify-start animate-fadeIn mb-4">
                 <div className="flex items-start space-x-3">
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
                     isDarkMode
@@ -478,7 +585,7 @@ function ChatbotComponent({ authToken, onLogout }) {
                   type="file"
                   id="archivo"
                   accept=".pdf"
-                  multiple // Permite seleccionar múltiples archivos
+                  multiple
                   onChange={handleFileSelection}
                   className="hidden"
                   ref={fileInputRef}
@@ -496,7 +603,7 @@ function ChatbotComponent({ authToken, onLogout }) {
                       ? 'text-purple-300 group-hover:text-purple-200'
                       : 'text-blue-300 group-hover:text-white'
                   }`} />
-                  {selectedFiles.length > 0 && ( // Mostrar contador solo si hay archivos
+                  {selectedFiles.length > 0 && (
                     <span className={`absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold text-white ${
                       isDarkMode ? 'bg-emerald-500' : 'bg-blue-600'
                     }`}>
@@ -511,7 +618,7 @@ function ChatbotComponent({ authToken, onLogout }) {
                   value={queryText}
                   onChange={(e) => setQueryText(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder="Escribe tu consulta aquí..." // Vuelve al placeholder original
+                  placeholder="Escribe tu consulta aquí..."
                   rows={1}
                   className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-500 resize-none backdrop-blur-lg ${
                     isDarkMode
@@ -523,7 +630,7 @@ function ChatbotComponent({ authToken, onLogout }) {
 
               <button
                 onClick={handleSendAction}
-                disabled={isLoading || (queryText.trim() === '' && selectedFiles.length === 0)} // Deshabilitar si no hay texto ni archivos
+                disabled={isLoading || (queryText.trim() === '' && selectedFiles.length === 0)}
                 className={`flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-300 hover:scale-110 disabled:opacity-70 disabled:cursor-not-allowed ${
                   isDarkMode
                     ? 'bg-gradient-to-r from-purple-600 to-pink-700 hover:from-purple-700 hover:to-pink-800 text-white'
