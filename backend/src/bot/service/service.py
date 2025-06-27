@@ -16,7 +16,7 @@ class RAGService:
             embedding_function=self.get_embeddings()
         )
         
-        retriever = db.as_retriever(search_kwargs={'k': 3})
+        retriever = db.as_retriever(search_kwargs={'k': 5})
         docs = retriever.invoke(question)
         context = "\n".join([doc.page_content for doc in docs])
         
